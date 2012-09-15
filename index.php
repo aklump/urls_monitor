@@ -19,7 +19,12 @@ foreach ($domains as $domain) {
   $row['class'][] = urls_monitor_css_safe($row['data']['status']);
 
   // Add a link to the website
-  $row['data']['host'] = $row['data']['host'] . ' <a class="external-link" href="' . $row['data']['url'] . '" onclick="window.open(this.href); return false;"><img src="images/external.png" /></a>';
+  $display = $row['data']['host'];
+  if ($conf['www_trim']) {
+    urls_monitor_www_trim($display);
+    urls_monitor_www_trim($row['data']['redirect']);
+  }
+  $row['data']['host'] = $display . ' <a class="external-link" href="' . $row['data']['url'] . '" onclick="window.open(this.href); return false;"><img src="images/external.png" /></a>';
   unset($row['data']['url']);
 
   $rows[] = $row;

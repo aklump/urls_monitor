@@ -210,4 +210,20 @@ function urls_monitor_css_safe($input, $flatten = FALSE) {
   return $input;
 }
 
+/**
+ * Trim the leading www. from an url
+ *
+ * @param string &$url
+ *
+ * @return NULL
+ */
+function urls_monitor_www_trim(&$url) {
+  if (($temp = parse_url($url)) && !empty($temp['host'])) {
+    $url = $temp['host'];
+  }
+  if (substr($url, 0, 4) == 'www.') {
+    $url = substr($url, 4);
+  }
+}
+
 /** @} */ //end of group urls-monitor
