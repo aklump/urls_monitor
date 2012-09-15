@@ -27,6 +27,10 @@ foreach ($domains as $domain) {
   $row['data']['host'] = $display . ' <a class="external-link" href="' . $row['data']['url'] . '" onclick="window.open(this.href); return false;"><img src="images/external.png" /></a>';
   unset($row['data']['url']);
 
+  if (($alias = urls_monitor_alias($row['data']['ip'])) && $alias != $row['data']['ip']) {
+    $row['data']['ip'] = ' <a href="javascript:alert(\'' . $row['data']['ip'] . '\')" title="' . $row['data']['ip'] . '">' . $alias . '</a>';
+  }
+
   $rows[] = $row;
   if (empty($header)) {
     $header = array_keys($row['data']);
