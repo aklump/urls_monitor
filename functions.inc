@@ -6,7 +6,8 @@
  * @ingroup urls-monitor
  * @{
  */
-
+global $conf;
+$conf = parse_ini_file('config.ini');
  /**
  * Return an array of domains
  *
@@ -31,9 +32,9 @@ function urls_monitor_urls() {
  *   The translated string or the raw string
  */
 function urls_monitor_alias($raw) {
-  $config = parse_ini_file('config.ini');
-  if (array_key_exists($raw, $config['alias'])) {
-    return $config['alias'][$raw];
+  global $conf;
+  if (array_key_exists($raw, $conf['alias'])) {
+    return $conf['alias'][$raw];
   }
   return $raw;
 }
@@ -49,14 +50,16 @@ function urls_monitor_alias($raw) {
  *   - status (bool)
  *   - ip
  */
-function urls_monitor_check($host, $timeout = 6) {
+function urls_monitor_check($host) {
+  global $conf;
   $result = array(
     'host' => $host,
+    'url' => $host,
   );
   if (!strstr($host, ':/')) {
-    $host = 'http://' . $host;
+    $result['url'] = 'http://' . $host;
   }
-  if (!($parsed = parse_url($host))) {
+  if (!($parsed = parse_url($result['url']))) {
     return;
   }
   $info = array_filter($parsed) + array(
@@ -64,6 +67,7 @@ function urls_monitor_check($host, $timeout = 6) {
   );
 
   //@todo Make this to see response code and detect redirect
+  $timeout = empty($conf['timeout']) ? 10 : $conf['timeout'];
   $fp = @fsockopen($info['host'], $info['port'], $errno, $errstr, $timeout);
   $result['status'] = (bool) $fp;
   $result['ip'] = NULL;
@@ -127,6 +131,10 @@ function urls_monitor_theme_table($rows, $attributes, $header = array()) {
  * @return string
  */
 function urls_monitor_page($info) {
+  global $conf;
+  $info += array(
+    'title' => empty($conf['page_title']) ? 'Website Status' : $conf['page_title'],
+  );
   $output = <<<EOD
 <!doctype html>
 <html>

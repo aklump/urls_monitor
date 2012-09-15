@@ -23,6 +23,11 @@ foreach ($domains as $domain) {
   else {
     $row['data']['status'] = 'ok';
   }
+
+  // Add a link to the website
+  $row['data']['host'] = $row['data']['host'] . ' <a class="external-link" href="' . $row['data']['url'] . '" onclick="window.open(this.href); return false;"><img src="images/external.png" /></a>';
+  unset($row['data']['url']);
+
   $rows[] = $row;
   if (empty($header)) {
     $header = array_keys($row['data']);
@@ -32,12 +37,11 @@ foreach ($domains as $domain) {
 /**
  * Output the View
  */
-$output = urls_monitor_theme_table($rows, array('id' => 'monitor-results', 'class' => 'tablesorter'), $header);
-print urls_monitor_page(array(
-  'title' => 'Domain Monitor Results',
-  'body' => $output,
-));
+$output = urls_monitor_theme_table($rows, array(
+  'id' => 'monitor-results',
+  'class' => 'tablesorter'
+), $header);
+print urls_monitor_page(array('body' => $output));
 exit();
-
 
 /** @} */ //end of group urls-monitor
