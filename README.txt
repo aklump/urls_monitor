@@ -1,5 +1,5 @@
 Description:
-Allows you to view the results of multiple domains from a single webpage.
+Allows you to view the connectivity results of multiple domains from a single webpage.
 
 Configuration:
 # Enter all domains you want to monitor, one per line into urls.txt.
