@@ -62,16 +62,37 @@ function urls_monitor_check($host) {
   if (!($parsed = parse_url($result['url']))) {
     return;
   }
-  $info = array_filter($parsed) + array(
-    'port' => 80,
-  );
 
   //@todo Make this to see response code and detect redirect
   $timeout = empty($conf['timeout']) ? 10 : $conf['timeout'];
-  $fp = @fsockopen($info['host'], $info['port'], $errno, $errstr, $timeout);
+
+  $curl = curl_init($result['host']);
+  curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, $timeout);
+  curl_setopt($curl, CURLOPT_TIMEOUT, $timeout);
+  curl_setopt($curl, CURLOPT_NOBODY, TRUE);
+  curl_setopt($curl, CURLOPT_HEADER, TRUE);
+  curl_setopt($curl, CURLOPT_FOLLOWLOCATION, TRUE);
+  curl_setopt($curl, CURLOPT_FRESH_CONNECT, TRUE);
+  curl_setopt($curl, CURLOPT_RETURNTRANSFER, TRUE);
+  curl_setopt($curl, CURLOPT_AUTOREFERER, TRUE);
+
+  $data = curl_exec($curl);
+  $info = curl_getinfo($curl);
+
+  // Determine if this redirects
+  $result['redirect'] = NULL;
+  if ($info['redirect_count'] > 1) {
+    $redirect = parse_url($info['url']);
+    $result['redirect'] = $redirect['host'];
+  }
+
+  $result['http_code'] = $info['http_code'];
+  curl_close($curl);
+  $fp = (bool)($info['http_code'] >= 200 && (int)$info['http_code'] <= 206);
+
   $result['status'] = (bool) $fp;
   $result['ip'] = NULL;
-  if ($ip = gethostbyname($info['host'])) {
+  if ($ip = gethostbyname($result['host'])) {
     $result['ip'] = urls_monitor_alias($ip);
   }
   return $result;
