@@ -23,6 +23,22 @@ function urls_monitor_urls() {
 }
 
 /**
+ * Translate a string
+ *
+ * @param string $raw
+ *
+ * @return string
+ *   The translated string or the raw string
+ */
+function urls_monitor_alias($raw) {
+  $config = parse_ini_file('config.ini');
+  if (array_key_exists($raw, $config['alias'])) {
+    return $config['alias'][$raw];
+  }
+  return $raw;
+}
+
+/**
  * Return an status array for a domain
  *
  * @param string $host
@@ -31,6 +47,7 @@ function urls_monitor_urls() {
  * @return array
  *   - host
  *   - status (bool)
+ *   - ip
  */
 function urls_monitor_check($host, $timeout = 6) {
   $result = array(
@@ -49,6 +66,10 @@ function urls_monitor_check($host, $timeout = 6) {
   //@todo Make this to see response code and detect redirect
   $fp = @fsockopen($info['host'], $info['port'], $errno, $errstr, $timeout);
   $result['status'] = (bool) $fp;
+  $result['ip'] = NULL;
+  if ($ip = gethostbyname($info['host'])) {
+    $result['ip'] = urls_monitor_alias($ip);
+  }
   return $result;
 }
 
@@ -61,10 +82,15 @@ function urls_monitor_check($host, $timeout = 6) {
  * @return string
  *   The html for a table
  */
-function urls_monitor_theme_table($rows, $id = '', $header = array()) {
+function urls_monitor_theme_table($rows, $attributes, $header = array()) {
   $output = '';
-  $output .= '<table id="'. $id .'" cellspacing="0" cellpadding="0">'."\n";
 
+  $attr = array();
+  foreach ($attributes as $key => $value) {
+    $attr[] = "$key=\"$value\"";
+  }
+  $attr = ' ' . implode(' ', $attr);
+  $output .= '<table' . $attr . ' cellspacing="0" cellpadding="0">'."\n";
   if (!empty($header)) {
     $output .= "<thead><tr>\n<th>" . implode("</th>\n<th>", $header) . "</th>\n</tr></thead>\n";
   }
@@ -109,6 +135,15 @@ function urls_monitor_page($info) {
     <title>{$info['title']}</title>
     <meta name="description" content="Results of the domain monitor">
     <link rel="stylesheet" href="style.css">
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js" type="text/javascript"></script>
+    <script type="text/javascript" src="jquery.tablesorter.min.js"></script>
+    <script>
+      $(document).ready(function()
+          {
+              $("#monitor-results").tablesorter();
+          }
+      );
+    </script>
   </head>
   <body>
     <h1>{$info['title']}</h1>

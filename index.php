@@ -28,11 +28,10 @@ foreach ($domains as $domain) {
   }
 }
 
-
 /**
  * Output the View
  */
-$output = urls_monitor_theme_table($rows, 'monitor-results', $header);
+$output = urls_monitor_theme_table($rows, array('id' => 'monitor-results', 'class' => 'tablesorter'), $header);
 print urls_monitor_page(array(
   'title' => 'Domain Monitor Results',
   'body' => $output,
