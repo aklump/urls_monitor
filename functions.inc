@@ -135,6 +135,7 @@ function urls_monitor_page($info) {
     <title>{$info['title']}</title>
     <meta name="description" content="Results of the domain monitor">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="custom.css">
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js" type="text/javascript"></script>
     <script type="text/javascript" src="jquery.tablesorter.min.js"></script>
     <script>
@@ -154,5 +155,33 @@ EOD;
   return $output;
 }
 
+
+/**
+ * Make a css safe class or id
+ *
+ * @param string or array $input
+ *   The string will be made css safe; array values will be made css safe
+ * @param bool $flatten
+ *   Optional.  Set to TRUE to flatten arrays into space separated strings
+ *
+ * @return string or array
+ */
+function urls_monitor_css_safe($input, $flatten = FALSE) {
+  if (is_array($input)) {
+    $function = __FUNCTION__;
+    foreach ($input as $key => $value) {
+      $input[$key] = $function($value);
+    }
+    return $flatten ? trim(implode(' ', $input)) : $input;
+  }
+  elseif (is_string($input)) {
+    $input = trim(strtolower(preg_replace('/[\W_]+/', '-', $input)), '-');
+    if (preg_match('/^(\d)(.*)/', $input, $found)) {
+      $word = array('zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine');
+      $input = $word[$found[1]] . $found[2];
+    }
+  }
+  return $input;
+}
 
 /** @} */ //end of group urls-monitor

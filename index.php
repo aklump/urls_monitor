@@ -15,6 +15,7 @@ foreach ($domains as $domain) {
   $row = array(
     'data' => urls_monitor_check($domain),
   );
+  $row['class'][] = urls_monitor_css_safe($row['data']['ip']);
   if (!$row['data']['status']) {
     $row['class'][] = 'offline';
     $row['data']['status'] = 'error';
