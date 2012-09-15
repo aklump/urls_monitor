@@ -1,0 +1,31 @@
+body {
+  font-family: Arial, sans-serif;
+  background-color: #eee;
+}
+h1 {
+  margin: 10px;
+  text-align: center;
+  color: #64A3EC;
+}
+table {
+  width: 80%;
+  margin: 10px auto;
+}
+table .even {
+  background-color: #fff;
+}
+table .odd {
+  background-color: #fff;
+}
+th {
+  text-align: left;
+  color: #fff;
+  background-color: #64A3EC;
+}
+td, th {
+  padding: 5px;
+}
+tr.offline {
+  background-color: #E90A46;
+  color: #fff;
+}
