@@ -78,6 +78,7 @@ function urls_monitor_check($host) {
 
   $data = curl_exec($curl);
   $info = curl_getinfo($curl);
+  curl_close($curl);
 
   // Determine if this redirects
   $result['redirect'] = NULL;
@@ -86,11 +87,7 @@ function urls_monitor_check($host) {
     $result['redirect'] = $redirect['host'];
   }
 
-  $result['http_code'] = $info['http_code'];
-  curl_close($curl);
-  $fp = (bool)($info['http_code'] >= 200 && (int)$info['http_code'] <= 206);
-
-  $result['status'] = (bool) $fp;
+  $result['status'] = empty($conf['status'][$info['http_code']]) ? $info['http_code'] : $conf['status'][$info['http_code']];
   $result['ip'] = NULL;
   if ($ip = gethostbyname($result['host'])) {
     $result['ip'] = urls_monitor_alias($ip);

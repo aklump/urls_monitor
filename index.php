@@ -16,13 +16,7 @@ foreach ($domains as $domain) {
     'data' => urls_monitor_check($domain),
   );
   $row['class'][] = urls_monitor_css_safe($row['data']['ip']);
-  if (!$row['data']['status']) {
-    $row['class'][] = 'offline';
-    $row['data']['status'] = 'error';
-  }
-  else {
-    $row['data']['status'] = 'ok';
-  }
+  $row['class'][] = urls_monitor_css_safe($row['data']['status']);
 
   // Add a link to the website
   $row['data']['host'] = $row['data']['host'] . ' <a class="external-link" href="' . $row['data']['url'] . '" onclick="window.open(this.href); return false;"><img src="images/external.png" /></a>';

@@ -25,7 +25,7 @@ th {
 td, th {
   padding: 5px;
 }
-tr.offline {
+tr.error {
   background-color: #E90A46;
   color: #fff;
 }
