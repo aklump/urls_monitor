@@ -8,12 +8,12 @@
  */
 require_once('functions.inc');
 
-$domains = get_domains();
+$domains = urls_monitor_urls();
 
 $rows = array();
 foreach ($domains as $domain) {
   $row = array(
-    'data' => ping($domain),
+    'data' => urls_monitor_check($domain),
   );
   if (!$row['data']['status']) {
     $row['class'][] = 'offline';
@@ -32,8 +32,8 @@ foreach ($domains as $domain) {
 /**
  * Output the View
  */
-$output = theme_table($rows, 'monitor-results', $header);
-print page(array(
+$output = urls_monitor_theme_table($rows, 'monitor-results', $header);
+print urls_monitor_page(array(
   'title' => 'Domain Monitor Results',
   'body' => $output,
 ));

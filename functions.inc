@@ -12,8 +12,8 @@
  *
  * @return array
  */
-function get_domains() {
-  $filename = 'domains.txt';
+function urls_monitor_urls() {
+  $filename = 'urls.txt';
   $domains = array();
   if (is_readable($filename)) {
     $domains = file_get_contents($filename);
@@ -32,7 +32,7 @@ function get_domains() {
  *   - host
  *   - status (bool)
  */
-function ping($host, $timeout = 6) {
+function urls_monitor_check($host, $timeout = 6) {
   $result = array(
     'host' => $host,
   );
@@ -61,7 +61,7 @@ function ping($host, $timeout = 6) {
  * @return string
  *   The html for a table
  */
-function theme_table($rows, $id = '', $header = array()) {
+function urls_monitor_theme_table($rows, $id = '', $header = array()) {
   $output = '';
   $output .= '<table id="'. $id .'" cellspacing="0" cellpadding="0">'."\n";
 
@@ -100,7 +100,7 @@ function theme_table($rows, $id = '', $header = array()) {
  *
  * @return string
  */
-function page($info) {
+function urls_monitor_page($info) {
   $output = <<<EOD
 <!doctype html>
 <html>
