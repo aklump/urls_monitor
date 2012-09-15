@@ -28,7 +28,7 @@ foreach ($domains as $domain) {
   unset($row['data']['url']);
 
   if (($alias = urls_monitor_alias($row['data']['ip'])) && $alias != $row['data']['ip']) {
-    $row['data']['ip'] = ' <a href="javascript:alert(\'' . $row['data']['ip'] . '\')" title="' . $row['data']['ip'] . '">' . $alias . '</a>';
+    $row['data']['ip'] = ' <a href="javascript:alert(\'' . $row['data']['ip'] . '\'); return false;" title="' . $row['data']['ip'] . '">' . $alias . '</a>';
   }
 
   $rows[] = $row;
