@@ -7,6 +7,7 @@
  * @{
  */
 require_once('functions.inc');
+global $conf;
 
 $domains = urls_monitor_urls();
 
@@ -15,8 +16,11 @@ foreach ($domains as $domain) {
   $row = array(
     'data' => urls_monitor_check($domain),
   );
-  $row['class'][] = urls_monitor_css_safe($row['data']['ip']);
-  $row['class'][] = urls_monitor_css_safe($row['data']['status']);
+  $row['class'][] = urls_monitor_css_safe(urls_monitor_alias($row['data']['ip']));
+  $row['data']['status'] = empty($conf['status'][$row['data']['status']]) ?
+    $row['data']['status'] :
+    $conf['status'][$row['data']['status']];
+  $row['class'][] = urls_monitor_css_safe(urls_monitor_alias($row['data']['status']));
 
   // Add a link to the website
   $display = $row['data']['host'];
@@ -24,11 +28,14 @@ foreach ($domains as $domain) {
     urls_monitor_www_trim($display);
     urls_monitor_www_trim($row['data']['redirect']);
   }
+
+  // Link to website
   $row['data']['host'] = $display . ' <a class="external-link" href="' . $row['data']['url'] . '" onclick="window.open(this.href); return false;"><img src="images/external.png" /></a>';
   unset($row['data']['url']);
 
+  // Link to the actual ip if different from alias
   if (($alias = urls_monitor_alias($row['data']['ip'])) && $alias != $row['data']['ip']) {
-    $row['data']['ip'] = ' <a href="javascript:alert(\'' . $row['data']['ip'] . '\'); return false;" title="' . $row['data']['ip'] . '">' . $alias . '</a>';
+    $row['data']['ip'] = $alias . ' <a class="external-link" href="javascript:alert(\'' . $row['data']['ip'] . '\'); return false;" title="' . $row['data']['ip'] . '"><img src="images/external.png" /></a>';
   }
 
   $rows[] = $row;

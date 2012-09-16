@@ -87,7 +87,7 @@ function urls_monitor_check($host) {
     $result['redirect'] = $redirect['host'];
   }
 
-  $result['status'] = empty($conf['status'][$info['http_code']]) ? $info['http_code'] : $conf['status'][$info['http_code']];
+  $result['status'] = $info['http_code'];
   $result['ip'] = NULL;
   if ($ip = gethostbyname($result['host'])) {
     $result['ip'] = $ip;
