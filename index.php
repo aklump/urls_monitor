@@ -24,10 +24,6 @@ foreach ($domains as $domain) {
 
   // Add a link to the website
   $display = $row['data']['host'];
-  if ($conf['www_trim']) {
-    urls_monitor_www_trim($display);
-    urls_monitor_www_trim($row['data']['redirect']);
-  }
 
   // Link to website
   $row['data']['host'] = $display . ' <a class="external-link" href="' . $row['data']['url'] . '" onclick="window.open(this.href); return false;"><img src="images/external.png" /></a>';
@@ -42,6 +38,10 @@ foreach ($domains as $domain) {
   if (empty($header)) {
     $header = array_keys($row['data']);
   }
+}
+// Translate the headers
+foreach ($header as $key => $value) {
+  $header[$key] = urls_monitor_alias($value);
 }
 
 /**

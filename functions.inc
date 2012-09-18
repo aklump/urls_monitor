@@ -52,16 +52,11 @@ function urls_monitor_alias($raw) {
  */
 function urls_monitor_check($host) {
   global $conf;
-  $result = array(
-    'host' => $host,
-    'url' => $host,
-  );
-  if (!strstr($host, ':/')) {
-    $result['url'] = 'http://' . $host;
-  }
-  if (!($parsed = parse_url($result['url']))) {
+
+  if (!($result = urls_monitor_parse_url($host))) {
     return;
   }
+  $result['status'] = NULL;
 
   //@todo Make this to see response code and detect redirect
   $timeout = empty($conf['timeout']) ? 10 : $conf['timeout'];
@@ -80,11 +75,18 @@ function urls_monitor_check($host) {
   $info = curl_getinfo($curl);
   curl_close($curl);
 
+  if ($conf['redirect_count']) {
+    $result['redirects'] = $info['redirect_count'];
+  }
+
   // Determine if this redirects
-  $result['redirect'] = NULL;
-  if ($info['redirect_count'] > 1) {
-    $redirect = parse_url($info['url']);
-    $result['redirect'] = $redirect['host'];
+  $result['redirected'] = NULL;
+  $redirect = urls_monitor_parse_url($info['url']);
+  if (strcasecmp($info['url'], $result['url'])) {
+    $result['redirected'] = $redirect['host'];
+    if ($conf['redirect_full_path'] &&  !empty($redirect['path'])) {
+      $result['redirected'] .= $redirect['path'];
+    }
   }
 
   $result['status'] = $info['http_code'];
@@ -93,6 +95,27 @@ function urls_monitor_check($host) {
     $result['ip'] = $ip;
   }
   return $result;
+}
+
+/**
+ * Parse an url
+ *
+ * @param string $url
+ *
+ * @return array
+ *   - schema
+ *   - host
+ */
+function urls_monitor_parse_url($url) {
+  $url = strtolower(trim($url, '/'));
+  if (!strstr($url, ':/')) {
+    $url = 'http://' . $url;
+  }
+  $parsed = parse_url($url) + array(
+    'url' => $url,
+  );
+  unset($parsed['scheme']);
+  return $parsed;
 }
 
 /**
@@ -208,22 +231,6 @@ function urls_monitor_css_safe($input, $flatten = FALSE) {
     }
   }
   return $input;
-}
-
-/**
- * Trim the leading www. from an url
- *
- * @param string &$url
- *
- * @return NULL
- */
-function urls_monitor_www_trim(&$url) {
-  if (($temp = parse_url($url)) && !empty($temp['host'])) {
-    $url = $temp['host'];
-  }
-  if (substr($url, 0, 4) == 'www.') {
-    $url = substr($url, 4);
-  }
 }
 
 /** @} */ //end of group urls-monitor
