@@ -5,6 +5,9 @@
  *
  * @defgroup urls-monitor URLS Monitor
  * @{
+ *
+ * @todo - add whois column (https://github.com/ikyon/Whois/blob/master/whois.php)?
+ * @todo - refigure the ip via header?
  */
 require_once('functions.inc');
 global $conf;
