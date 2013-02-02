@@ -8,7 +8,9 @@
  */
 global $conf;
 $conf = parse_ini_file('config.ini');
- /**
+$conf['columns'] = array_filter($conf['columns']);
+
+/**
  * Return an array of domains
  *
  * @return array
@@ -16,9 +18,9 @@ $conf = parse_ini_file('config.ini');
 function urls_monitor_urls() {
   $filename = 'urls.txt';
   $domains = array();
-  if (is_readable($filename)) {
-    $domains = file_get_contents($filename);
-    $domains = explode("\n", trim($domains));
+  if (is_readable($filename) &&
+      ($list = trim(file_get_contents($filename)))) {
+    $domains = explode("\n", trim($list));
   }
   return $domains;
 }
@@ -33,7 +35,8 @@ function urls_monitor_urls() {
  */
 function urls_monitor_alias($raw) {
   global $conf;
-  if (array_key_exists($raw, $conf['alias'])) {
+  if (is_array($conf['alias']) &&
+      array_key_exists($raw, $conf['alias'])) {
     return $conf['alias'][$raw];
   }
   return $raw;

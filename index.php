@@ -12,7 +12,10 @@
 require_once('functions.inc');
 global $conf;
 
-$domains = urls_monitor_urls();
+if (!($domains = urls_monitor_urls())) {
+  print 'Please add one or more domains to urls.txt';
+  exit;
+}
 
 $rows = array();
 foreach ($domains as $domain) {
@@ -37,6 +40,7 @@ foreach ($domains as $domain) {
     $row['data']['ip'] = $alias . ' <a class="external-link" href="javascript:alert(\'' . $row['data']['ip'] . '\'); return false;" title="' . $row['data']['ip'] . '"><img src="images/external.png" /></a>';
   }
 
+  $row['data'] = array_intersect_key($row['data'], $conf['columns']);
   $rows[] = $row;
   if (empty($header)) {
     $header = array_keys($row['data']);

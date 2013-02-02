@@ -6,8 +6,11 @@ To allow tablesorting you need to download tablesorter
 # Move jquery.tablesorter.min.js into this folder
 
 Configuration:
+# Create a file called urls.txt
+# Create a file called config.ini
 # Enter all domains you want to monitor, one per line into urls.txt.
 # Create aliases for your ips if you want, in config.ini
+# urls.example.txt and config.example.ini are provided as examples
 
 Usage:
 # Ping index.php and view your results
