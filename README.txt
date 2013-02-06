@@ -2,18 +2,20 @@ Description:
 Allows you to view the connectivity results of multiple domains from a single webpage.
 
 To allow tablesorting you need to download tablesorter
-# http://tablesorter.com/docs/#Download
-# Move jquery.tablesorter.min.js into this folder
+* http://tablesorter.com/docs/*Download
+* Move jquery.tablesorter.min.js into this folder
 
 Configuration:
-# Create a file called urls.txt
-# Create a file called config.ini
-# Enter all domains you want to monitor, one per line into urls.txt.
-# Create aliases for your ips if you want, in config.ini
-# urls.example.txt and config.example.ini are provided as examples
+* Create a file called urls.txt
+* Create a file called config.ini
+* Enter all domains you want to monitor, one per line into urls.txt. You may
+  skip lines. Not that you may also add comments using any one of the following:
+  '#', '//', ';' at the beginning of the line.
+* Create aliases for your ips if you want, in config.ini
+* urls.example.txt and config.example.ini are provided as examples
 
 Usage:
-# Ping index.php and view your results
+* Ping index.php and view your results
 
 --------------------------------------------------------
 CONTACT:

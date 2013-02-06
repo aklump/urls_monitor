@@ -21,6 +21,10 @@ function urls_monitor_urls() {
   if (is_readable($filename) &&
       ($list = trim(file_get_contents($filename)))) {
     $domains = explode("\n", trim($list));
+    // Remove blank lines
+    $domains = array_filter($domains);
+    // Remove commented lines
+    $domains = array_filter($domains, create_function('$url', 'return !preg_match("/^(;|#|\/\/)/", $url);'));
   }
   return $domains;
 }
@@ -73,6 +77,26 @@ function urls_monitor_check($host) {
   curl_setopt($curl, CURLOPT_FRESH_CONNECT, TRUE);
   curl_setopt($curl, CURLOPT_RETURNTRANSFER, TRUE);
   curl_setopt($curl, CURLOPT_AUTOREFERER, TRUE);
+
+  if (array_key_exists('httpauth', $conf)) {
+    $userpwd = FALSE;
+    if (!empty($conf['httpauth'][$host])) {
+      $userpwd = $conf['httpauth'][$host];
+    }
+    else {
+      foreach ($conf['httpauth'] as $regex => $value) {
+        $regex = trim($regex, '/');
+        if (preg_match('/' . $regex . '/', $host)) {
+          $userpwd = $value;
+          break;
+        }
+      }
+    }
+    if ($userpwd) {
+      curl_setopt($curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
+      curl_setopt($curl, CURLOPT_USERPWD, $userpwd);
+    }
+  }
 
   $data = curl_exec($curl);
   $info = curl_getinfo($curl);
