@@ -60,18 +60,27 @@ function urls_monitor_alias($raw) {
 function urls_monitor_check($host) {
   global $conf;
 
-  if (!($result = urls_monitor_parse_url($host))) {
+  if (!($parsed = urls_monitor_parse_url($host))) {
     return;
+  }
+
+  // juggle this around so the column order is based on config.ini
+  $result = array_fill_keys(array_keys($conf['columns']), NULL);
+  foreach ($parsed as $key => $value) {
+    $result[$key] = $value;
   }
   $result['status'] = NULL;
 
   //@todo Make this to see response code and detect redirect
   $timeout = empty($conf['timeout']) ? 10 : $conf['timeout'];
 
+  // are we looking for content on this page?
+  $find = !empty($conf['find'][$result['host']]);
+
   $curl = curl_init($result['host']);
   curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, $timeout);
   curl_setopt($curl, CURLOPT_TIMEOUT, $timeout);
-  curl_setopt($curl, CURLOPT_NOBODY, TRUE);
+  curl_setopt($curl, CURLOPT_NOBODY, !$find);
   curl_setopt($curl, CURLOPT_HEADER, TRUE);
   curl_setopt($curl, CURLOPT_FOLLOWLOCATION, TRUE);
   curl_setopt($curl, CURLOPT_FRESH_CONNECT, TRUE);
@@ -117,10 +126,19 @@ function urls_monitor_check($host) {
   }
 
   $result['status'] = $info['http_code'];
+  if ($find) {
+    $result['status'] = 1;
+    $haystack = substr($data, $info['header_size']);
+    if (strstr($haystack, $conf['find'][$result['host']])) {
+      $result['status'] = $info['http_code'];
+    }
+  }
+
   $result['ip'] = NULL;
   if ($ip = gethostbyname($result['host'])) {
     $result['ip'] = $ip;
   }
+
   return $result;
 }
 
