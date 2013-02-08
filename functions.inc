@@ -7,6 +7,11 @@
  * @{
  */
 global $conf;
+
+if (!file_exists('config.ini')) {
+  fatal('Please create config.ini and try again.');
+}
+
 $conf = parse_ini_file('config.ini');
 $conf['columns'] = array_filter($conf['columns']);
 
@@ -89,8 +94,9 @@ function urls_monitor_check($host) {
   curl_setopt($curl, CURLOPT_RETURNTRANSFER, TRUE);
   curl_setopt($curl, CURLOPT_AUTOREFERER, TRUE);
 
+  $userpwd = FALSE;
+  $result['password'] = '-';
   if (array_key_exists('httpauth', $conf)) {
-    $userpwd = FALSE;
     if (!empty($conf['httpauth'][$host])) {
       $userpwd = $conf['httpauth'][$host];
     }
@@ -103,7 +109,6 @@ function urls_monitor_check($host) {
         }
       }
     }
-    $result['password'] = 'no';
 
     if ($userpwd) {
 
@@ -144,17 +149,35 @@ function urls_monitor_check($host) {
   $result['status'] = $info['http_code'];
 
   // Password status
-  if (!in_array($result['password'], array('missing', 'no'))
+  if ($userpwd
+      && !in_array($result['password'], array('missing', 'no', '-'))
       && $result['status'] != 401) {
     $result['password'] = 'un-locked';
   }
 
   // Only look for string if we haven't any errors
+  $result['text'] = '-';
   if ($result['status'] && $result['status'] < 300 && $find) {
     $result['status'] = 2;
     $haystack = substr($data, $info['header_size']);
-    if (strstr($haystack, $conf['find'][$result['host']])) {
+    $needles = $conf['find'][$result['host']];
+
+    //@todo there is no support yet in the configuration to make this an array;
+    //come up with one
+    if (!is_array($needles)) {
+      $needles = array($needles);
+    }
+    $found = 0;
+    // performs and and search
+    foreach ($needles as $needle) {
+      if (strstr($haystack, $needle)) {
+        $found++;
+      }
+    }
+    $result['text'] = 'missing';
+    if ($found == count($needles)) {
       $result['status'] = $info['http_code'];
+      $result['text'] = 'ok';
     }
   }
 
@@ -248,7 +271,7 @@ function urls_monitor_theme_table($rows, $attributes, $header = array()) {
 function urls_monitor_page($info) {
   global $conf;
   $info += array(
-    'title' => empty($conf['page_title']) ? 'Website Status' : $conf['page_title'],
+    'title' => empty($conf['page_title']) ? 'Websites Status' : $conf['page_title'],
   );
   $output = <<<EOD
 <!doctype html>
@@ -305,6 +328,12 @@ function urls_monitor_css_safe($input, $flatten = FALSE) {
     }
   }
   return $input;
+}
+
+function fatal($message) {
+  $message = '<div class="message fatal">' . $message . '</div>';
+  print urls_monitor_page(array('body' => $message));
+  exit;
 }
 
 /** @} */ //end of group urls-monitor
