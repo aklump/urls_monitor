@@ -27,7 +27,8 @@ td, th {
 }
 tr.no-pass,
 tr.no-text,
-tr.error {
+tr.error,
+.message.fatal {
   background-color: #E90A46;
   color: #fff;
 }
@@ -43,4 +44,10 @@ table.tablesorter thead tr .headerSortUp {
 }
 table.tablesorter thead tr .headerSortDown {
 	background-image: url(images/desc.gif);
+}
+
+.message {
+  text-align: center;
+  padding: 20px;
+  margin: 20px 0;
 }

@@ -13,8 +13,7 @@ require_once('functions.inc');
 global $conf;
 
 if (!($domains = urls_monitor_urls())) {
-  print 'Please add one or more domains to urls.txt';
-  exit;
+  fatal('Please add one or more domains to urls.txt');
 }
 
 $rows = array();
