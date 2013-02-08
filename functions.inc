@@ -56,6 +56,8 @@ function urls_monitor_alias($raw) {
  *   - host
  *   - status (bool)
  *   - ip
+ *   
+ * @todo figure out why the session doesn't pass in the curl calls
  */
 function urls_monitor_check($host) {
   global $conf;
@@ -101,9 +103,11 @@ function urls_monitor_check($host) {
         }
       }
     }
+    $result['password'] = 'no';
     if ($userpwd) {
       curl_setopt($curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
       curl_setopt($curl, CURLOPT_USERPWD, $userpwd);
+      $result['password'] = 'locked';
     }
   }
 
@@ -126,7 +130,14 @@ function urls_monitor_check($host) {
   }
 
   $result['status'] = $info['http_code'];
-  if ($find) {
+
+  // Password status
+  if ($result['password'] != 'no' && $result['status'] != 401) {
+    $result['password'] = 'un-locked';
+  }
+
+  // Only look for string if we haven't any errors
+  if ($result['status'] && $result['status'] < 300 && $find) {
     $result['status'] = 1;
     $haystack = substr($data, $info['header_size']);
     if (strstr($haystack, $conf['find'][$result['host']])) {
