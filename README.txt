@@ -2,7 +2,7 @@ Description:
 Allows you to view the connectivity results of multiple domains from a single webpage.
 
 To allow tablesorting you need to download tablesorter
-* http://tablesorter.com/docs/*Download
+* http://tablesorter.com/docs/#Download
 * Move jquery.tablesorter.min.js into this folder
 
 Configuration:
