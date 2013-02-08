@@ -25,6 +25,7 @@ th {
 td, th {
   padding: 5px;
 }
+tr.no-pass,
 tr.no-text,
 tr.error {
   background-color: #E90A46;

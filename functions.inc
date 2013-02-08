@@ -56,7 +56,7 @@ function urls_monitor_alias($raw) {
  *   - host
  *   - status (bool)
  *   - ip
- *   
+ *
  * @todo figure out why the session doesn't pass in the curl calls
  */
 function urls_monitor_check($host) {
@@ -104,10 +104,22 @@ function urls_monitor_check($host) {
       }
     }
     $result['password'] = 'no';
+
     if ($userpwd) {
+
+      // Make a call and make sure its 401 first
+      $data = curl_exec($curl);
+      $info = curl_getinfo($curl);
+      if (!($lock_test = $info['http_code'] == 401)) {
+        $result['password'] = 'missing';
+      }
+      else {
+        $result['password'] = 'locked';
+      }
+
+      // Now set the credentials provided
       curl_setopt($curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
       curl_setopt($curl, CURLOPT_USERPWD, $userpwd);
-      $result['password'] = 'locked';
     }
   }
 
@@ -132,13 +144,14 @@ function urls_monitor_check($host) {
   $result['status'] = $info['http_code'];
 
   // Password status
-  if ($result['password'] != 'no' && $result['status'] != 401) {
+  if (!in_array($result['password'], array('missing', 'no'))
+      && $result['status'] != 401) {
     $result['password'] = 'un-locked';
   }
 
   // Only look for string if we haven't any errors
   if ($result['status'] && $result['status'] < 300 && $find) {
-    $result['status'] = 1;
+    $result['status'] = 2;
     $haystack = substr($data, $info['header_size']);
     if (strstr($haystack, $conf['find'][$result['host']])) {
       $result['status'] = $info['http_code'];
@@ -148,6 +161,11 @@ function urls_monitor_check($host) {
   $result['ip'] = NULL;
   if ($ip = gethostbyname($result['host'])) {
     $result['ip'] = $ip;
+  }
+
+  // set status for a missing lock
+  if ($result['password'] == 'missing') {
+    $result['status'] = 1;
   }
 
   return $result;
