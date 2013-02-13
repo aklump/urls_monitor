@@ -2,10 +2,14 @@ body {
   font-family: Arial, sans-serif;
   background-color: #eee;
 }
-h1 {
-  margin: 10px;
+h1,
+h2 {
+  margin: 10px 0;
   text-align: center;
   color: #64A3EC;
+}
+h2 {
+  margin: 5px 0;
 }
 table {
   width: 80%;

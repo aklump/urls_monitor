@@ -21,15 +21,18 @@ $conf['columns'] = array_filter($conf['columns']);
  * @return array
  */
 function urls_monitor_urls() {
-  $filename = 'urls.txt';
-  $domains = array();
-  if (is_readable($filename) &&
-      ($list = trim(file_get_contents($filename)))) {
-    $domains = explode("\n", trim($list));
-    // Remove blank lines
-    $domains = array_filter($domains);
-    // Remove commented lines
-    $domains = array_filter($domains, create_function('$url', 'return !preg_match("/^(;|#|\/\/)/", $url);'));
+  static $domains = array();
+  if (empty($domains)) {
+    $filename = 'urls.txt';
+    $domains = array();
+    if (is_readable($filename) &&
+        ($list = trim(file_get_contents($filename)))) {
+      $domains = explode("\n", trim($list));
+      // Remove blank lines
+      $domains = array_filter($domains);
+      // Remove commented lines
+      $domains = array_filter($domains, create_function('$url', 'return !preg_match("/^(;|#|\/\/)/", $url);'));
+    }
   }
   return $domains;
 }
@@ -272,6 +275,7 @@ function urls_monitor_page($info) {
   global $conf;
   $info += array(
     'title' => empty($conf['page_title']) ? 'Websites Status' : $conf['page_title'],
+    'subtitle' => ($count = count(urls_monitor_urls())) == 1 ? '1 Domain' : "$count Domains" . ' Monitored',
   );
   $output = <<<EOD
 <!doctype html>
@@ -294,6 +298,7 @@ function urls_monitor_page($info) {
   </head>
   <body>
     <h1>{$info['title']}</h1>
+    <h2>{$info['subtitle']}</h2>
     {$info['body']}
   </body>
 </html>
