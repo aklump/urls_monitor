@@ -13,6 +13,13 @@ if (!file_exists('config.ini')) {
 }
 
 $conf = parse_ini_file('config.ini');
+$conf += array(
+  'alias' => array(),
+  'status' => array(),
+  'columns' => array(),
+  'find' => array(),
+  'httpauth' => array(),
+);
 $conf['columns'] = array_filter($conf['columns']);
 
 /**
@@ -47,7 +54,8 @@ function urls_monitor_urls() {
  */
 function urls_monitor_alias($raw) {
   global $conf;
-  if (is_array($conf['alias']) &&
+  if (!empty($conf['alias'])
+      && is_array($conf['alias']) &&
       array_key_exists($raw, $conf['alias'])) {
     return $conf['alias'][$raw];
   }
@@ -58,7 +66,8 @@ function urls_monitor_alias($raw) {
  * Return an status array for a domain
  *
  * @param string $host
- * @param int $timeout
+ * @param bool $skip_curl
+ *   Set to true to skip the actual curl call
  *
  * @return array
  *   - host
@@ -67,7 +76,7 @@ function urls_monitor_alias($raw) {
  *
  * @todo figure out why the session doesn't pass in the curl calls
  */
-function urls_monitor_check($host) {
+function urls_monitor_check($host, $skip_curl = FALSE) {
   global $conf;
 
   if (!($parsed = urls_monitor_parse_url($host))) {
@@ -79,7 +88,16 @@ function urls_monitor_check($host) {
   foreach ($parsed as $key => $value) {
     $result[$key] = $value;
   }
-  $result['status'] = NULL;
+  $not_checked = '-';
+  $result['status']       = $not_checked;
+  $result['password']     = $not_checked;
+  $result['redirects']    = $not_checked;
+  $result['redirected']   = $not_checked;
+  $result['ip']           = $not_checked;
+
+  if ($skip_curl) {
+    return $result;
+  }
 
   //@todo Make this to see response code and detect redirect
   $timeout = empty($conf['timeout']) ? 10 : $conf['timeout'];
@@ -98,7 +116,6 @@ function urls_monitor_check($host) {
   curl_setopt($curl, CURLOPT_AUTOREFERER, TRUE);
 
   $userpwd = FALSE;
-  $result['password'] = '-';
   if (array_key_exists('httpauth', $conf)) {
     if (!empty($conf['httpauth'][$host])) {
       $userpwd = $conf['httpauth'][$host];
@@ -140,7 +157,6 @@ function urls_monitor_check($host) {
   }
 
   // Determine if this redirects
-  $result['redirected'] = NULL;
   $redirect = urls_monitor_parse_url($info['url']);
   if (strcasecmp($info['url'], $result['url'])) {
     $result['redirected'] = $redirect['host'];
@@ -184,7 +200,6 @@ function urls_monitor_check($host) {
     }
   }
 
-  $result['ip'] = NULL;
   if ($ip = gethostbyname($result['host'])) {
     $result['ip'] = $ip;
   }
@@ -219,46 +234,140 @@ function urls_monitor_parse_url($url) {
 }
 
 /**
+ * Preprocess the row data
+ *
+ * @param array &$row
+ *   See example for exptected format
+ *
+ * @code
+ *   $row = array(
+ *     'data' => urls_monitor_check($domain),
+ *   );
+ * @endcod
+ *
+ * @return NULL
+ *
+ * @see urls_monitor_check()
+ *
+ */
+function urls_monitor_preprocess_row(&$row) {
+  global $conf;
+
+  $row['class'][] = urls_monitor_css_safe(urls_monitor_alias($row['data']['ip']));
+
+  // Ajax reload
+  $row['data']['check'] = array(
+    'data' => '<a href="#" class="ajax-check" rel="' . $row['data']['host'] . '"><img src="images/reload.gif" alt="ajax-reload-icon" /></a>',
+    'class' => array('ajax'),
+  );
+
+  // Status
+  $row['data']['status'] = empty($conf['status'][$row['data']['status']]) ?
+    $row['data']['status'] :
+    $conf['status'][$row['data']['status']];
+  $row['class'][] = urls_monitor_css_safe(urls_monitor_alias($row['data']['status']));
+
+  // Add a link to the website
+  $display = $row['data']['host'];
+
+  // Link to website
+  $row['data']['host'] = $display . ' <a class="external-link" href="' . $row['data']['url'] . '" onclick="window.open(this.href); return false;"><img src="images/external.png" /></a>';
+  unset($row['data']['url']);
+
+  // Link to the actual ip if different from alias
+  if (($alias = urls_monitor_alias($row['data']['ip'])) && $alias != $row['data']['ip']) {
+    $row['data']['ip'] = $alias . ' <a class="external-link" href="javascript:alert(\'' . $row['data']['ip'] . '\'); return false;" title="' . $row['data']['ip'] . '"><img src="images/external.png" /></a>';
+  }
+
+  $row['data'] = array_intersect_key($row['data'], $conf['columns']);
+}
+
+/**
  * Theme a table
  *
  * @param $rows array
  *   An array of rows, each an array of cells
+ *   Each row is an array with:
+ *   - data: an array of cells
+ *   - class: an array of classes for tr
+ *     Each cell array is either a string or an array
+ *     - data: the cell contents
+ *     - class: an array of classes for td
+ * @param array $attributes
+ *   An array of attributes to apply to the table
  *
  * @return string
  *   The html for a table
  */
-function urls_monitor_theme_table($rows, $attributes, $header = array()) {
+function urls_monitor_theme_table($rows, $attributes = array(), $header = array()) {
   $output = '';
 
   $attr = array();
+  $attributes += array(
+    'cellspacing' => 0,
+    'cellpadding' => 0,
+  );
   foreach ($attributes as $key => $value) {
     $attr[] = "$key=\"$value\"";
   }
   $attr = ' ' . implode(' ', $attr);
-  $output .= '<table' . $attr . ' cellspacing="0" cellpadding="0">'."\n";
+  $output .= '<table' . $attr . '>'."\n";
+  $output .= '<thead><tr>' . "\n";
+  $class = '';
   if (!empty($header)) {
-    $output .= "<thead><tr>\n<th>" . implode("</th>\n<th>", $header) . "</th>\n</tr></thead>\n";
+    foreach (array_keys($header) as $key) {
+      $th = array();
+      if (!is_array($header[$key])) {
+        $th['data'] = $header[$key];
+      }
+      else {
+        $th = $header[$key];
+      }
+      if (!empty($th['class'])) {
+        $class = implode(' ', (array) $th['class']);
+      }
+      $output .= '<th class="'. trim($class) .'">' . $th['data'] . '</th>'."\n";
+    }
+    $output .= "</tr></thead>\n";
   }
 
   $alt = 0;
-  foreach ($rows as $cells) {
-    if (!isset($cells['data'])) {
-      $cells['data'] = $cells;
-    }
-    $class = '';
-    if (!empty($cells['class'])) {
-      $class .= implode(' ', $cells['class']);
-    }
-    $class .= ' '. ($alt ? 'even' : 'odd');
-    $alt = !$alt;
-    $output .= '<tr class="'. trim($class) .'">'."\n";
-    $id = 1;
-    foreach ($cells['data'] as $cell) {
-      $output .= '<td class="col-'. $id++ .'">'. $cell .'</td>'."\n";
-    }
-    $output .= '</tr>'."\n";
+  foreach (array_keys($rows) as $row_key) {
+    $output .= urls_monitor_theme_tr($rows[$row_key], $alt) . "\n";
   }
   $output .= '</table>'."\n";
+  return $output;
+}
+
+/**
+ * Theme a row
+ */
+function urls_monitor_theme_tr($row_data, $alt = 0) {
+  $output = '';
+  $row = array();
+  if (!isset($row_data['data'])) {
+    $row['data'] = $row_data;
+  }
+  else {
+    $row = $row_data;
+  }
+  $row['class'][] = ($alt ? 'even' : 'odd');
+  $alt = !$alt;
+  $class = implode(' ', (array) $row['class']);
+  $output .= '<tr class="'. trim($class) .'">'."\n";
+  $id = 1;
+  foreach (array_keys($row['data']) as $cell_key) {
+    if (!is_array($row['data'][$cell_key])) {
+      $cell = array('data' => $row['data'][$cell_key]);
+    }
+    else {
+      $cell = $row['data'][$cell_key];
+    }
+    $cell['class'][] = ' col-' . $id++;
+    $class = implode(' ', (array) $cell['class']);
+    $output .= '<td class="' . trim($class) . '">'. $cell['data'] .'</td>'."\n";
+  }
+  $output .= '</tr>'."\n";
   return $output;
 }
 
@@ -288,6 +397,7 @@ function urls_monitor_page($info) {
     <link rel="stylesheet" href="custom.css">
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js" type="text/javascript"></script>
     <script type="text/javascript" src="jquery.tablesorter.min.js"></script>
+    <script type="text/javascript" src="urls_monitor.js"></script>
     <script>
       $(document).ready(function()
           {
@@ -300,6 +410,7 @@ function urls_monitor_page($info) {
     <h1>{$info['title']}</h1>
     <h2>{$info['subtitle']}</h2>
     {$info['body']}
+    <div id="loading">Checking Now...</div>
   </body>
 </html>
 EOD;

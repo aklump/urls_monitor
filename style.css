@@ -37,6 +37,11 @@ tr.error,
   color: #fff;
 }
 
+/*Class to apply while actively ajax checking*/
+tr.checking {
+  background-color: #feffae;
+}
+
 table.tablesorter thead tr .header {
 	background-image: url(images/bg.gif);
 	background-repeat: no-repeat;
@@ -54,4 +59,19 @@ table.tablesorter thead tr .headerSortDown {
   text-align: center;
   padding: 20px;
   margin: 20px 0;
+}
+
+#loading {
+  display: none;
+  text-align: center;
+  padding: 20px;
+  height: 20px;
+  margin-top: -40px;
+  width: 200px;
+  left: 50%;
+  margin-left: -100px;
+  position: absolute;
+  top: 50%;
+  background: #fd6dbf;
+  color: white;
 }
