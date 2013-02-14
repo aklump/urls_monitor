@@ -46,6 +46,7 @@
      ajax calls to update the DOM
    */
   UrlsMonitor.attachBehaviors = function() {
+    $('table.tablesorter').trigger('update');
 
     // Click handler for ajax checking
     $('a.ajax-check').click(function() {
