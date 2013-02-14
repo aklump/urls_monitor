@@ -1,43 +1,41 @@
-Description:
+DESCRIPTION:
 Allows you to view the connectivity results of multiple domains from a single webpage.
 
-To allow tablesorting you need to download tablesorter
-* http://tablesorter.com/docs/#Download
-* Move jquery.tablesorter.min.js into this folder
 
-Installation:
-* Do the following for fast installation
-
+QUICK START:
 * Navigate to a parent folder
 * Download the project into the parent folder with this:
 
   git clone git://github.com/aklump/urls_monitor.git [project name]
 
-Automatic Installation
-* A script, install.sh has been provided which copies automates the steps below,
-  you may run it or do it manually.
+* Run install.sh script
 
   . install.sh
 
-Manual Configuration:
-* You SHOULD NOT edit style.css, instead create a file called custom.css for css
-  overrides and it will be automatically included for you.
+* You may safely delete install.sh when finished.
+
+
+MANUAL INSTALLATION/CONFIGURATION:
 * urls.example.txt and config.example.ini are provided as examples
-* Create a file called urls.txt
+* Copy urls.example.txt as urls.txt an populate
 * Enter all domains you want to monitor, one per line into urls.txt. You may
   skip lines. Not that you may also add comments using any one of the following:
   '#', '//', ';' at the beginning of the line.
-* Create a file called config.ini
+* Copy config.example.ini as config.ini
 * Create aliases for your ips if you want, in config.ini
 * See config.example.ini for more configuration options
 
-Post Installation
-* Delete install.sh if you see it.
+To allow tablesorting you need to download tablesorter
+* http://tablesorter.com/docs/#Download
+* Move jquery.tablesorter.min.js project's root folder
 
-  rm install.sh
+
+THEMING
+* You SHOULD NOT edit style.css, instead create a file called custom.css for css
+  overrides and it will be automatically included for you.
 
 
-Usage:
+USAGE:
 * Ping index.php and view your results
 
 --------------------------------------------------------
