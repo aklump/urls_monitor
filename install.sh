@@ -80,10 +80,8 @@ fi
 # Check for success
 if [ -f jquery.tablesorter.min.js ] && [ -f config.ini ] && [ -f urls.txt ]
 then
-  # Our work is done; bye!
-  rm install.sh
-  echo 'Installation complete'
-  echo "Please edit urls.txt and config.ini";
+  echo 'Installation complete.'
+  echo "Please edit urls.txt and config.ini.";
 else
   echo 'Installation failed.'
 fi
