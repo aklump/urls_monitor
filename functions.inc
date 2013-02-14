@@ -257,7 +257,7 @@ function urls_monitor_preprocess_row(&$row) {
 
   // Ajax reload
   $row['data']['check'] = array(
-    'data' => '<a href="#" class="ajax-check" rel="' . $row['data']['host'] . '"><img src="images/reload.gif" alt="ajax-reload-icon" /></a>',
+    'data' => '<a href="#" onclick="return false;" class="ajax-check" rel="' . $row['data']['host'] . '"><img src="images/reload.gif" alt="ajax-reload-icon" /></a>',
     'class' => array('ajax'),
   );
 
@@ -279,6 +279,11 @@ function urls_monitor_preprocess_row(&$row) {
     $row['data']['ip'] = $alias . ' <a class="external-link" href="javascript:alert(\'' . $row['data']['ip'] . '\'); return false;" title="' . $row['data']['ip'] . '"><img src="images/external.png" /></a>';
   }
 
+  // We have to have the check column set to true or ajax won't work
+  $conf['columns'] += array(
+    'check' => TRUE,
+  );
+  $conf['columns'] = TRUE;
   $row['data'] = array_intersect_key($row['data'], $conf['columns']);
 }
 
