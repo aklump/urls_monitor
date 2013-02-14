@@ -90,6 +90,7 @@ function urls_monitor_check($host, $skip_curl = FALSE) {
   }
   $not_checked = '-';
   $result['status']       = $not_checked;
+  $result['text']         = $not_checked;
   $result['password']     = $not_checked;
   $result['redirects']    = $not_checked;
   $result['redirected']   = $not_checked;
@@ -175,7 +176,6 @@ function urls_monitor_check($host, $skip_curl = FALSE) {
   }
 
   // Only look for string if we haven't any errors
-  $result['text'] = '-';
   if ($result['status'] && $result['status'] < 300 && $find) {
     $result['status'] = 2;
     $haystack = substr($data, $info['header_size']);
@@ -283,7 +283,7 @@ function urls_monitor_preprocess_row(&$row) {
   $conf['columns'] += array(
     'check' => TRUE,
   );
-  $conf['columns'] = TRUE;
+  $conf['columns']['check'] = TRUE;
   $row['data'] = array_intersect_key($row['data'], $conf['columns']);
 }
 

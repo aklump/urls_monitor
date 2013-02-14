@@ -70,7 +70,7 @@ table.tablesorter thead tr .headerSortDown {
   width: 200px;
   left: 50%;
   margin-left: -100px;
-  position: absolute;
+  position: fixed;
   top: 50%;
   background: #fd6dbf;
   color: white;

@@ -12,6 +12,9 @@
 require_once('functions.inc');
 global $conf;
 
+/**
+ * Configuration Checking
+ */
 if (!($domains = urls_monitor_urls())) {
   fatal('Please add one or more domains to urls.txt');
 }
