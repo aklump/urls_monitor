@@ -5,7 +5,21 @@ To allow tablesorting you need to download tablesorter
 * http://tablesorter.com/docs/#Download
 * Move jquery.tablesorter.min.js into this folder
 
-Configuration:
+Installation:
+* Do the following for fast installation
+
+* Navigate to a parent folder
+* Download the project into the parent folder with this:
+
+  git clone git://github.com/aklump/urls_monitor.git [project name]
+
+Automatic Installation
+* A script, install.sh has been provided which copies automates the steps below,
+  you may run it or do it manually.
+
+  . install.sh
+
+Manual Configuration:
 * You SHOULD NOT edit style.css, instead create a file called custom.css for css
   overrides and it will be automatically included for you.
 * urls.example.txt and config.example.ini are provided as examples
@@ -16,6 +30,12 @@ Configuration:
 * Create a file called config.ini
 * Create aliases for your ips if you want, in config.ini
 * See config.example.ini for more configuration options
+
+Post Installation
+* Delete install.sh if you see it.
+
+  rm install.sh
+
 
 Usage:
 * Ping index.php and view your results

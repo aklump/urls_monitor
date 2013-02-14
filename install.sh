@@ -55,18 +55,35 @@
 # @{
 #
 
-# install
-cp config.example.ini config.ini
-cp urls.example.txt urls.txt
-mkdir temp
-cd temp
-curl -O http://tablesorter.com/__jquery.tablesorter.zip
-unzip __jquery.tablesorter.zip
-mv jquery.tablesorter.min.js ../
-cd ..
-rm -rf temp
+# Configuration files
+if [ ! -f config.ini ]
+then
+  cp config.example.ini config.ini
+fi
+if [ ! -f urls.txt ]
+then
+  cp urls.example.txt urls.txt
+fi
 
-echo 'Installation complete'
-echo "Please edit urls.txt and config.ini";
+# Download tablesorter
+if [ ! -f jquery.tablesorter.min.js ]
+then
+  mkdir temp
+  cd temp
+  curl -O http://tablesorter.com/__jquery.tablesorter.zip
+  unzip __jquery.tablesorter.zip
+  mv jquery.tablesorter.min.js ../
+  cd ..
+  rm -rf temp
+fi
 
-
+# Check for success
+if [ -f jquery.tablesorter.min.js ] && [ -f config.ini ] && [ -f urls.txt ]
+then
+  # Our work is done; bye!
+  rm install.sh
+  echo 'Installation complete'
+  echo "Please edit urls.txt and config.ini";
+else
+  echo 'Installation failed.'
+fi
