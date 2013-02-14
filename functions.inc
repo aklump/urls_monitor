@@ -40,12 +40,14 @@ function urls_monitor_urls() {
     $filename = 'urls.txt';
     $domains = array();
     if (is_readable($filename) &&
-        ($list = trim(file_get_contents($filename)))) {
-      $domains = explode("\n", trim($list));
+        ($domains = file($filename))) {
       // Remove blank lines
       $domains = array_filter($domains);
       // Remove commented lines
       $domains = array_filter($domains, create_function('$url', 'return !preg_match("/^(;|#|\/\/)/", $url);'));
+      foreach (array_keys($domains) as $key) {
+        $domains[$key] = trim($domains[$key]);
+      }
     }
   }
   return $domains;
