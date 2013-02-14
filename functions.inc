@@ -6,6 +6,13 @@
  * @ingroup urls-monitor
  * @{
  */
+/**
+ * @var URLS_MONITOR_BLANK
+ *
+ * String value to use on NULL or unknown cell values
+ */
+define('URLS_MONITOR_BLANK', '-');
+
 global $conf;
 
 if (!file_exists('config.ini')) {
@@ -88,19 +95,17 @@ function urls_monitor_check($host, $skip_curl = FALSE) {
   foreach ($parsed as $key => $value) {
     $result[$key] = $value;
   }
-  $not_checked = '-';
-  $result['status']       = $not_checked;
-  $result['text']         = $not_checked;
-  $result['password']     = $not_checked;
-  $result['redirects']    = $not_checked;
-  $result['redirected']   = $not_checked;
-  $result['ip']           = $not_checked;
+  $result['status']       = URLS_MONITOR_BLANK;
+  $result['text']         = URLS_MONITOR_BLANK;
+  $result['password']     = URLS_MONITOR_BLANK;
+  $result['redirects']    = URLS_MONITOR_BLANK;
+  $result['redirected']   = URLS_MONITOR_BLANK;
+  $result['ip']           = URLS_MONITOR_BLANK;
 
   if ($skip_curl) {
     return $result;
   }
 
-  //@todo Make this to see response code and detect redirect
   $timeout = empty($conf['timeout']) ? 10 : $conf['timeout'];
 
   // are we looking for content on this page?
@@ -123,10 +128,12 @@ function urls_monitor_check($host, $skip_curl = FALSE) {
     }
     else {
       foreach ($conf['httpauth'] as $regex => $value) {
-        $regex = trim($regex, '/');
-        if (preg_match('/' . $regex . '/', $host)) {
-          $userpwd = $value;
-          break;
+        if (substr($value, 0, 1) === '/') {
+          $regex = trim($regex, '/');
+          if (preg_match('/' . $regex . '/', $host)) {
+            $userpwd = $value;
+            break;
+          }
         }
       }
     }
@@ -253,11 +260,13 @@ function urls_monitor_parse_url($url) {
 function urls_monitor_preprocess_row(&$row) {
   global $conf;
 
+  $host = $row['data']['host'];
+
   $row['class'][] = urls_monitor_css_safe(urls_monitor_alias($row['data']['ip']));
 
   // Ajax reload
   $row['data']['check'] = array(
-    'data' => '<a href="#" onclick="return false;" class="ajax-check" rel="' . $row['data']['host'] . '"><img src="images/reload.gif" alt="ajax-reload-icon" /></a>',
+    'data' => '<a href="#" onclick="return false;" class="ajax-check" rel="' . $host . '"><img src="images/reload.gif" alt="ajax-reload-icon" /></a>',
     'class' => array('ajax'),
   );
 
@@ -268,15 +277,21 @@ function urls_monitor_preprocess_row(&$row) {
   $row['class'][] = urls_monitor_css_safe(urls_monitor_alias($row['data']['status']));
 
   // Add a link to the website
-  $display = $row['data']['host'];
+  $display = $host;
 
   // Link to website
-  $row['data']['host'] = $display . ' <a class="external-link" href="' . $row['data']['url'] . '" onclick="window.open(this.href); return false;"><img src="images/external.png" /></a>';
+  $row['data']['host'] = $display . '<a class="external-link" href="' . $row['data']['url'] . '" onclick="window.open(this.href); return false;"><img src="images/external.png" /></a>';
   unset($row['data']['url']);
 
   // Link to the actual ip if different from alias
   if (($alias = urls_monitor_alias($row['data']['ip'])) && $alias != $row['data']['ip']) {
-    $row['data']['ip'] = $alias . ' <a class="external-link" href="javascript:alert(\'' . $row['data']['ip'] . '\'); return false;" title="' . $row['data']['ip'] . '"><img src="images/external.png" /></a>';
+    $row['data']['ip'] = $alias . '<a class="external-link" href="javascript:alert(\'' . $row['data']['ip'] . '\'); return false;" title="' . $row['data']['ip'] . '"><img src="images/external.png" /></a>';
+  }
+
+  // Link to see the find text for this url
+  if ($row['data']['text'] != URLS_MONITOR_BLANK
+      && $conf['find'][$host]) {
+    $row['data']['text'] .= '<a class="external-link" href="javascript:alert(\'' . $conf['find'][$host] . '\'); return false;" title="' . $conf['find'][$host] . '"><img src="images/external.png" /></a>';
   }
 
   // We have to have the check column set to true or ajax won't work
