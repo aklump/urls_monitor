@@ -16,7 +16,7 @@ define('URLS_MONITOR_BLANK', '-');
 global $conf;
 $config_file = urls_monitor_get_config_dir() . '/config.ini';
 if (!file_exists($config_file)) {
-  fatal('Please create config.ini and try again.');
+  urls_monitor_fatal('Please create config.ini and try again.');
 }
 
 $conf = parse_ini_file($config_file);
@@ -41,6 +41,48 @@ function urls_monitor_get_page() {
  */
 function urls_monitor_get_config_dir() {
   return getcwd() . '/config/' . urls_monitor_get_page();
+}
+
+/**
+ * Return an array of valid pages
+ */
+function urls_monitor_get_pages() {
+  $pages = array();
+  $directory = 'config';
+  $recursive = TRUE;
+  $files = urls_monitor_list_files($directory, $recursive);
+  foreach ($files as $file) {
+    if (substr($file, -11) == '/config.ini') {
+      if (($page = substr($file, 7, -11))) {
+        $pages[$page] = $page;
+      }
+    }
+  }
+  asort($pages);
+  return $pages;
+}
+
+function urls_monitor_list_files($directory, $recursive) {
+  $array_items = array();
+  if ($handle = opendir($directory)) {
+    while (false !== ($file = readdir($handle))) {
+      if ($file != "." && $file != "..") {
+        if (is_dir($directory. "/" . $file)) {
+          if($recursive) {
+            $array_items = array_merge($array_items, urls_monitor_list_files($directory. "/" . $file, $recursive));
+          }
+          $file = $directory . "/" . $file;
+          $array_items[] = preg_replace("/\/\//si", "/", $file);
+          }
+          else {
+            $file = $directory . "/" . $file;
+            $array_items[] = preg_replace("/\/\//si", "/", $file);
+          }
+        }
+      }
+      closedir($handle);
+    }
+  return $array_items;
 }
 
 /**
@@ -418,6 +460,56 @@ function urls_monitor_theme_tr($row_data, $alt = 0) {
 }
 
 /**
+ * Theme a an array as form options
+ *
+ * @param $options array
+ *   The keys of the array are the option values, and the values of the array are the visible elements
+ * @param $selected string
+ *   The key of the selected option.
+ *
+ * @return string
+ *   The html needed to add to the form.
+ */
+function urls_monitor_theme_options($options, $selected = '') {
+  $output = '';
+  foreach ($options as $key => $value) {
+    $sel = $key == $selected ? ' selected="selected"' : '';
+    $output .= '<option value="'. $key .'"'. $sel .'>'. $value .'</option>'."\n";
+  }
+  return $output;
+}
+
+/**
+ * Theme a select dropdown
+ *
+ * @param $name string
+ *   The name of the select element
+ * @param $options array
+ *   An array of options @see urls_monitor_theme_options()
+ * @param $selected string
+ * @param $label string
+ * @param $description string
+ *   Optional, explanatory or descriptive text
+ *
+ * @return html
+ */
+function urls_monitor_theme_select($name, $options, $selected = '', $label = '', $description = '') {
+  $output = '';
+  $output .= '<div class="form-item select" id="form-item-'. $name .'">'."\n";
+  if ($label) {
+    $output .= '<label for="'. $name .'">'. $label .'</label>'."\n";
+  }
+  $output .= '<select name="'. $name .'" id="'. $name .'">'."\n";
+  $output .= urls_monitor_theme_options($options, $selected) ."\n";
+  $output .= '</select>'."\n";
+  if ($description) {
+    $output .= '<div class="description">' . $description . '</div>' . "\n";
+  }
+  $output .= '</div> <!-- /.form-item -->'."\n";
+  return $output;
+}
+
+/**
  * Wrap the output with an html page
  *
  * @param array
@@ -432,8 +524,13 @@ function urls_monitor_page($info) {
     'title' => empty($conf['page_title']) ? 'Websites Status' : $conf['page_title'],
     'subtitle' => ($count = count(urls_monitor_urls())) == 1 ? '1 Domain' : "$count Domains" . ' Monitored',
   );
-  $config = 'config/' . urls_monitor_get_page();
+  $active_page = urls_monitor_get_page();
+  $config = 'config/' . $active_page;
   $q = urls_monitor_get_page();
+
+  $options = urls_monitor_get_pages();
+  $switch_to = urls_monitor_theme_select('page-menu', $options, $active_page, 'Switch to:');
+
   //@todo remove stylesheets that don't exist to avoid 404s
   $output = <<<EOD
 <!doctype html>
@@ -459,13 +556,13 @@ function urls_monitor_page($info) {
     <h1>{$info['title']}</h1>
     <h2>{$info['subtitle']}</h2>
     {$info['body']}
+    <div id="page-menu-wrapper">{$switch_to}</div>
     <div id="loading">Checking Now...</div>
   </body>
 </html>
 EOD;
   return $output;
 }
-
 
 /**
  * Make a css safe class or id
@@ -495,8 +592,8 @@ function urls_monitor_css_safe($input, $flatten = FALSE) {
   return $input;
 }
 
-function fatal($message) {
-  $message = '<div class="message fatal">' . $message . '</div>';
+function urls_monitor_fatal($message) {
+  $message = '<div class="message urls_monitor_fatal">' . $message . '</div>';
   print urls_monitor_page(array('body' => $message));
   exit;
 }

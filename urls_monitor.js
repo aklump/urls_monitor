@@ -55,6 +55,19 @@
       $row = $(this).parents('tr');
       var data = UrlsMonitor.check($(this).attr('rel'), $row);
     });
+
+    // Jump menu support
+    $('#page-menu')
+    .hide()
+    .change(function() {
+      var url = $(this).val();
+      window.location.assign('/' + url);
+    });
+    $('#page-menu-wrapper').hover(function() {
+      $('#page-menu').show();
+    }, function() {
+      $('#page-menu').hide();
+    });
   }
 
   /**

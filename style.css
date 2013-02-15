@@ -36,12 +36,10 @@ tr.error,
   background-color: #E90A46;
   color: #fff;
 }
-
 /*Class to apply while actively ajax checking*/
 tr.checking {
   background-color: #feffae;
 }
-
 table.tablesorter thead tr .header {
 	background-image: url(/images/bg.gif);
 	background-repeat: no-repeat;
@@ -62,7 +60,6 @@ a.external-link {
   padding: 20px;
   margin: 20px 0;
 }
-
 #loading {
   display: none;
   text-align: center;
@@ -76,4 +73,12 @@ a.external-link {
   top: 50%;
   background: #fd6dbf url(/images/checking.gif) no-repeat center 20px;
   color: white;
+}
+#page-menu-wrapper {
+  color: #aaa;
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 3px;
+  font-size: 11px;
 }
