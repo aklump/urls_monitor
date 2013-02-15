@@ -1,3 +1,4 @@
+*.komodo*
 .DS_Store
 jquery.tablesorter.min.js
 config/*
