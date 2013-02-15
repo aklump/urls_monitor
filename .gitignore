@@ -1,5 +1,4 @@
-urls.*txt
-config.ini
-custom.css
-custom.scss
+*.komodo*
+.DS_Store
 jquery.tablesorter.min.js
+config/*

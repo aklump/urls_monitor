@@ -14,12 +14,12 @@
 define('URLS_MONITOR_BLANK', '-');
 
 global $conf;
-
-if (!file_exists('config.ini')) {
+$config_file = urls_monitor_get_config_dir() . '/config.ini';
+if (!file_exists($config_file)) {
   fatal('Please create config.ini and try again.');
 }
 
-$conf = parse_ini_file('config.ini');
+$conf = parse_ini_file($config_file);
 $conf += array(
   'alias' => array(),
   'status' => array(),
@@ -30,6 +30,20 @@ $conf += array(
 $conf['columns'] = array_filter($conf['columns']);
 
 /**
+ * Get the current page
+ */
+function urls_monitor_get_page() {
+  return empty($_GET['q']) ? 'default' : $_GET['q'];
+}
+
+/**
+ * Get the current config directory
+ */
+function urls_monitor_get_config_dir() {
+  return getcwd() . '/config/' . urls_monitor_get_page();
+}
+
+/**
  * Return an array of domains
  *
  * @return array
@@ -37,7 +51,7 @@ $conf['columns'] = array_filter($conf['columns']);
 function urls_monitor_urls() {
   static $domains = array();
   if (empty($domains)) {
-    $filename = 'urls.txt';
+    $filename = urls_monitor_get_config_dir() . '/urls.txt';
     $domains = array();
     if (is_readable($filename) &&
         ($domains = file($filename))) {
@@ -418,6 +432,9 @@ function urls_monitor_page($info) {
     'title' => empty($conf['page_title']) ? 'Websites Status' : $conf['page_title'],
     'subtitle' => ($count = count(urls_monitor_urls())) == 1 ? '1 Domain' : "$count Domains" . ' Monitored',
   );
+  $config = 'config/' . urls_monitor_get_page();
+  $q = urls_monitor_get_page();
+  //@todo remove stylesheets that don't exist to avoid 404s
   $output = <<<EOD
 <!doctype html>
 <html>
@@ -425,17 +442,17 @@ function urls_monitor_page($info) {
     <meta charset="utf-8">
     <title>{$info['title']}</title>
     <meta name="description" content="Results of the domain monitor">
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="custom.css">
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/config/default/style.css">
+    <link rel="stylesheet" href="/{$config}/style.css">
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js" type="text/javascript"></script>
-    <script type="text/javascript" src="jquery.tablesorter.min.js"></script>
-    <script type="text/javascript" src="urls_monitor.js"></script>
+    <script type="text/javascript" src="/jquery.tablesorter.min.js"></script>
+    <script type="text/javascript" src="/urls_monitor.js"></script>
+    <script type="text/javascript">var um_page='{$q}'</script>
     <script>
-      $(document).ready(function()
-          {
-              $("#monitor-results").tablesorter();
-          }
-      );
+      $(document).ready(function(){
+        $("#monitor-results").tablesorter();
+      });
     </script>
   </head>
   <body>
