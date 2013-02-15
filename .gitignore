@@ -1,5 +1,3 @@
-urls.*txt
-config.ini
-custom.css
-custom.scss
+.DS_Store
 jquery.tablesorter.min.js
+config/*

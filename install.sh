@@ -55,15 +55,33 @@
 # @{
 #
 
+start_dir=$(PWD);
+
+# Gleen the page name
+if [ $# -ne 1 ]
+then
+  page='default'
+else
+  page=$1
+fi
+
+# Make sure the directory exists
+mkdir -p "config/$page"
+
+# Descend into page directory
+cd "config/$page"
+
 # Configuration files
 if [ ! -f config.ini ]
 then
-  cp config.example.ini config.ini
+  cp "$start_dir/config/default/config.default.ini" config.ini
 fi
 if [ ! -f urls.txt ]
 then
-  cp urls.example.txt urls.txt
+  cp "$start_dir/config/default/urls.default.txt" urls.txt
 fi
+
+cd $start_dir
 
 # Download tablesorter
 if [ ! -f jquery.tablesorter.min.js ]
@@ -78,10 +96,10 @@ then
 fi
 
 # Check for success
-if [ -f jquery.tablesorter.min.js ] && [ -f config.ini ] && [ -f urls.txt ]
+if [ -f jquery.tablesorter.min.js ] && [ -f config/$page/config.ini ] && [ -f config/$page/urls.txt ]
 then
   echo 'Installation complete.'
-  echo "Please edit urls.txt and config.ini.";
+  echo "Please edit config/$page/urls.txt and config/$page/config.ini now.";
 else
   echo 'Installation failed.'
 fi
