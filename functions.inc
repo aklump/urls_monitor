@@ -43,10 +43,13 @@ function urls_monitor_urls() {
         ($domains = file($filename))) {
       // Remove blank lines
       $domains = array_filter($domains);
-      // Remove commented lines
-      $domains = array_filter($domains, create_function('$url', 'return !preg_match("/^(;|#|\/\/)/", $url);'));
       foreach (array_keys($domains) as $key) {
         $domains[$key] = trim($domains[$key]);
+        // Remove commented lines
+        if (empty($domains[$key])
+            || preg_match("/^(;|#|\/\/)/", ($domains[$key]))) {
+          unset($domains[$key]);
+        }
       }
     }
   }
@@ -235,10 +238,12 @@ function urls_monitor_parse_url($url) {
   if (!strstr($url, ':/')) {
     $url = 'http://' . $url;
   }
-  $parsed = parse_url($url) + array(
-    'url' => $url,
-  );
-  unset($parsed['scheme']);
+  if (($parsed = parse_url($url))) {
+    $parsed += array(
+      'url' => $url,
+    );
+    unset($parsed['scheme']);
+  }
   return $parsed;
 }
 
@@ -288,6 +293,11 @@ function urls_monitor_preprocess_row(&$row) {
   // Link to the actual ip if different from alias
   if (($alias = urls_monitor_alias($row['data']['ip'])) && $alias != $row['data']['ip']) {
     $row['data']['ip'] = $alias . '<a class="external-link" href="javascript:alert(\'' . $row['data']['ip'] . '\'); return false;" title="' . $row['data']['ip'] . '"><img src="images/external.png" /></a>';
+  }
+
+  // Link to see the find text for this url
+  if ($row['data']['password'] == 'un-locked') {
+    $row['data']['password'] .= '<a class="external-link" href="javascript:alert(\'' . $conf['httpauth'][$host] . '\'); return false;" title="' . $conf['httpauth'][$host] . '"><img src="images/external.png" /></a>';
   }
 
   // Link to see the find text for this url
