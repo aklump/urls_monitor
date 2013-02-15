@@ -16,7 +16,7 @@ global $conf;
  * Configuration Checking
  */
 if (!($domains = urls_monitor_urls())) {
-  fatal('Please add one or more domains to urls.txt');
+  urls_monitor_fatal('Please add one or more domains to urls.txt');
 }
 
 $rows = array();
