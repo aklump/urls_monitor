@@ -43,16 +43,16 @@ tr.checking {
 }
 
 table.tablesorter thead tr .header {
-	background-image: url(images/bg.gif);
+	background-image: url(/images/bg.gif);
 	background-repeat: no-repeat;
 	background-position: center right;
 	cursor: pointer;
 }
 table.tablesorter thead tr .headerSortUp {
-	background-image: url(images/asc.gif);
+	background-image: url(/images/asc.gif);
 }
 table.tablesorter thead tr .headerSortDown {
-	background-image: url(images/desc.gif);
+	background-image: url(/images/desc.gif);
 }
 a.external-link {
   margin-left: 2px;
@@ -67,13 +67,13 @@ a.external-link {
   display: none;
   text-align: center;
   padding: 20px;
-  height: 20px;
+  padding-top: 102px;
   margin-top: -40px;
   width: 200px;
   left: 50%;
   margin-left: -100px;
   position: fixed;
   top: 50%;
-  background: #fd6dbf;
+  background: #fd6dbf url(/images/checking.gif) no-repeat center 20px;
   color: white;
 }
