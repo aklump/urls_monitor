@@ -287,7 +287,7 @@ function urls_monitor_preprocess_row(&$row) {
 
   // Ajax reload
   $row['data']['check'] = array(
-    'data' => '<a href="#" onclick="return false;" class="ajax-check" rel="' . $host . '"><img src="images/reload.gif" alt="ajax-reload-icon" /></a>',
+    'data' => '<a href="#" onclick="return false;" class="ajax-check" rel="' . $host . '"><img src="/images/reload.gif" alt="ajax-reload-icon" /></a>',
     'class' => array('ajax'),
   );
 
@@ -301,23 +301,23 @@ function urls_monitor_preprocess_row(&$row) {
   $display = $host;
 
   // Link to website
-  $row['data']['host'] = $display . '<a class="external-link" href="' . $row['data']['url'] . '" onclick="window.open(this.href); return false;"><img src="images/external.png" /></a>';
+  $row['data']['host'] = $display . '<a class="external-link" href="' . $row['data']['url'] . '" onclick="window.open(this.href); return false;"><img src="/images/external.png" /></a>';
   unset($row['data']['url']);
 
   // Link to the actual ip if different from alias
   if (($alias = urls_monitor_alias($row['data']['ip'])) && $alias != $row['data']['ip']) {
-    $row['data']['ip'] = $alias . '<a class="external-link" href="javascript:alert(\'' . $row['data']['ip'] . '\'); return false;" title="' . $row['data']['ip'] . '"><img src="images/external.png" /></a>';
+    $row['data']['ip'] = $alias . '<a class="external-link" href="javascript:alert(\'' . $row['data']['ip'] . '\'); return false;" title="' . $row['data']['ip'] . '"><img src="/images/external.png" /></a>';
   }
 
   // Link to see the find text for this url
   if ($row['data']['password'] == 'un-locked') {
-    $row['data']['password'] .= '<a class="external-link" href="javascript:alert(\'' . $conf['httpauth'][$host] . '\'); return false;" title="' . $conf['httpauth'][$host] . '"><img src="images/external.png" /></a>';
+    $row['data']['password'] .= '<a class="external-link" href="javascript:alert(\'' . $conf['httpauth'][$host] . '\'); return false;" title="' . $conf['httpauth'][$host] . '"><img src="/images/external.png" /></a>';
   }
 
   // Link to see the find text for this url
   if ($row['data']['text'] != URLS_MONITOR_BLANK
       && $conf['find'][$host]) {
-    $row['data']['text'] .= '<a class="external-link" href="javascript:alert(\'' . $conf['find'][$host] . '\'); return false;" title="' . $conf['find'][$host] . '"><img src="images/external.png" /></a>';
+    $row['data']['text'] .= '<a class="external-link" href="javascript:alert(\'' . $conf['find'][$host] . '\'); return false;" title="' . $conf['find'][$host] . '"><img src="/images/external.png" /></a>';
   }
 
   // We have to have the check column set to true or ajax won't work

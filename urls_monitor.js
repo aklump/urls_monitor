@@ -20,7 +20,7 @@
    */
   UrlsMonitor.check = function(host, $row) {
     $row.addClass('checking');
-    $.getJSON('ajax.php?q=' + um_page, {op: 'urls_monitor_check', host: host}, function(data) {
+    $.getJSON('/ajax.php?q=' + um_page, {op: 'urls_monitor_check', host: host}, function(data) {
       UrlsMonitor.refreshRow($row, data);
     });
   }
@@ -35,7 +35,7 @@
    */
   UrlsMonitor.refreshRow = function($row, data) {
     $.extend(data, {op: 'urls_monitor_theme_tr'});
-    $.post('ajax.php?q=' + um_page, data, function(data) {
+    $.post('/ajax.php?q=' + um_page, data, function(data) {
       $row.replaceWith(data);
       UrlsMonitor.attachBehaviors();
     })
