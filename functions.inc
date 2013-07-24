@@ -162,6 +162,7 @@ function urls_monitor_check($host, $skip_curl = FALSE) {
   $result['redirects']    = URLS_MONITOR_BLANK;
   $result['redirected']   = URLS_MONITOR_BLANK;
   $result['ip']           = URLS_MONITOR_BLANK;
+  $result['ttl']          = URLS_MONITOR_BLANK;
 
   if ($skip_curl) {
     return $result;
@@ -272,6 +273,12 @@ function urls_monitor_check($host, $skip_curl = FALSE) {
     $result['ip'] = $ip;
   }
 
+  // TTL using dig
+  if (($dig = urls_monitor_parse_dig($result['host']))
+      && !empty($dig['ttl'])) {
+    $result['ttl'] = $dig['ttl'];
+  }
+
   // set status for a missing lock
   if ($result['password'] == 'missing') {
     $result['status'] = 1;
@@ -300,6 +307,45 @@ function urls_monitor_parse_url($url) {
     );
     unset($parsed['scheme']);
   }
+  return $parsed;
+}
+
+/**
+ * Return parsed dig results for a domain
+ *
+ * @param string $url
+ *
+ * @return array
+ *   tbd
+ */
+function urls_monitor_parse_dig($url) {
+  static $dig = NULL;
+  if ($dig === NULL) {
+    exec('which dig', $dig);
+    $dig = array_shift($dig);
+  }
+  if (!$dig) {
+    return array();
+  }
+  $parsed = array();
+  $cmd = $dig . ' ' . $url;
+  exec($cmd, $output, $return);
+  $answer = FALSE;
+  foreach ($output as $key => $value) {
+    if (stristr($value, 'answer section')) {
+      $answer = TRUE;
+      continue;
+    }
+    if ($answer
+        && preg_match('/(\d+)\sIN\sA\s([\d\.]+)$/', $value, $parsed)) {
+      $parsed = array(
+        'ttl' => $parsed[1],
+        'ip' => $parsed[2],
+      );
+      break;
+    }
+  }
+
   return $parsed;
 }
 
