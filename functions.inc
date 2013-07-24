@@ -123,10 +123,19 @@ function urls_monitor_urls() {
 function urls_monitor_alias($raw) {
   global $conf;
   if (!empty($conf['alias'])
-      && is_array($conf['alias']) &&
-      array_key_exists($raw, $conf['alias'])) {
-    return $conf['alias'][$raw];
+      && is_array($conf['alias'])) {
+    // Look for exact match
+    if (array_key_exists($raw, $conf['alias'])) {
+      return $conf['alias'][$raw];
+    }
+    // Look for wildcard
+    foreach (array_keys($conf['alias']) as $key) {
+      if (substr($raw, 0, strlen($key)) == $key) {
+        return $conf['alias'][$key];
+      }
+    }
   }
+  
   return $raw;
 }
 
