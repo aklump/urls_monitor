@@ -328,7 +328,16 @@ function urls_monitor_parse_dig($url) {
     return array();
   }
   $parsed = array();
-  $cmd = $dig . ' ' . $url;
+
+  // Get the authoritative nameserver
+  $cmd = $dig . ' +nssearch ' . $url;
+  exec($cmd, $output, $return);
+  if (preg_match('/(?:\d{1,3}\.){3}\d{1,3}/', end($output), $found)) {
+    $auth_ns = $found[0];
+  }
+
+  // Get the TTL
+  $cmd = $dig . ' +noauthority +noquestion +nostats @' . $auth_ns . ' ' . $url;
   exec($cmd, $output, $return);
   $answer = FALSE;
   foreach ($output as $key => $value) {
