@@ -10,6 +10,7 @@ QUICK START:
 
   git clone git://github.com/aklump/urls_monitor.git web_root_folder
 
+* Make sure the directory 'config' is writable by the php user.
 * To add your first page use the install.sh script in shell.
 
   . install.sh

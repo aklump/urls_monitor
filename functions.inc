@@ -13,6 +13,9 @@
  */
 define('URLS_MONITOR_BLANK', '-');
 
+/**
+ * Bootstrap
+ */
 global $conf;
 $config_file = urls_monitor_get_config_dir() . '/config.ini';
 if (!file_exists($config_file)) {
@@ -29,11 +32,65 @@ $conf += array(
 );
 $conf['columns'] = array_filter($conf['columns']);
 
+$storage = urls_monitor_get_storage_dir();
+if (!is_dir($storage)) {
+  mkdir($storage);
+}
+
+/**
+ * Return the storage directory; must be writeable
+ *
+ * @return string
+ */
+function urls_monitor_get_storage_dir() {
+  return getcwd() . '/config/.config';
+}
+
+/**
+ * Get a persistent variable
+ *
+ * @param string $var
+ *
+ * @return mixed
+ */
+function urls_monitor_get_persistent($var) {
+  $value = NULL;
+  $file = urls_monitor_get_storage_dir() . '/var_' . $var . '.txt';
+  if (file_exists($file)
+      && ($contents = file_get_contents($file))) {
+    $value = trim($contents);
+  }
+
+  return $value;
+}
+
+/**
+ * Set a persistent variable
+ *
+ * @param string $var
+ * @param string $value
+ */
+function urls_monitor_set_persistent($var, $value) {
+  $file = urls_monitor_get_storage_dir() . '/var_' . $var . '.txt';
+  $fh = fopen($file, 'w');
+  fwrite($fh, $value);
+  fclose($fh);
+}
+
 /**
  * Get the current page
  */
 function urls_monitor_get_page() {
-  return empty($_GET['q']) ? 'default' : $_GET['q'];
+  if (!empty($_GET['q'])) {
+    urls_monitor_set_persistent('page', $_GET['q']);
+    return $_GET['q'];
+  }
+  elseif ($page = urls_monitor_get_persistent('page')) {
+    return $page;
+  }
+  else {
+    return 'default';
+  }
 }
 
 /**
@@ -66,7 +123,7 @@ function urls_monitor_list_files($directory, $recursive) {
   $array_items = array();
   if ($handle = opendir($directory)) {
     while (false !== ($file = readdir($handle))) {
-      if ($file != "." && $file != "..") {
+      if ($file != '.config' && $file != "." && $file != "..") {
         if (is_dir($directory. "/" . $file)) {
           if($recursive) {
             $array_items = array_merge($array_items, urls_monitor_list_files($directory. "/" . $file, $recursive));
@@ -116,26 +173,28 @@ function urls_monitor_urls() {
  * Translate a string
  *
  * @param string $raw
+ * @param string $conf_key
+ *   (Optional) Defaults to 'alias'. The $conf key to use to search for aliases
  *
  * @return string
  *   The translated string or the raw string
  */
-function urls_monitor_alias($raw) {
+function urls_monitor_alias($raw, $conf_key = 'alias') {
   global $conf;
-  if (!empty($conf['alias'])
-      && is_array($conf['alias'])) {
+  if (!empty($conf[$conf_key])
+      && is_array($conf[$conf_key])) {
     // Look for exact match
-    if (array_key_exists($raw, $conf['alias'])) {
-      return $conf['alias'][$raw];
+    if (array_key_exists($raw, $conf[$conf_key])) {
+      return $conf[$conf_key][$raw];
     }
     // Look for wildcard
-    foreach (array_keys($conf['alias']) as $key) {
+    foreach (array_keys($conf[$conf_key]) as $key) {
       if (substr($raw, 0, strlen($key)) == $key) {
-        return $conf['alias'][$key];
+        return $conf[$conf_key][$key];
       }
     }
   }
-  
+
   return $raw;
 }
 
@@ -338,17 +397,23 @@ function urls_monitor_parse_dig($url) {
   }
   $parsed = array();
 
-  // Get the authoritative nameserver
+
+
+  // Try to get the authoritative nameserver so the TTL is not cached
   $cmd = $dig . ' +nssearch ' . $url;
   exec($cmd, $output, $return);
+
+  $cmd = $dig . ' +noauthority +noquestion +nostats ' . $url;
+  $auth_ns = FALSE;
   if (preg_match('/(?:\d{1,3}\.){3}\d{1,3}/', end($output), $found)) {
     $auth_ns = $found[0];
+    $cmd = $dig . ' +noauthority +noquestion +nostats @' . $auth_ns . ' ' . $url;
   }
 
   // Get the TTL
-  $cmd = $dig . ' +noauthority +noquestion +nostats @' . $auth_ns . ' ' . $url;
   exec($cmd, $output, $return);
   $answer = FALSE;
+
   foreach ($output as $key => $value) {
     if (stristr($value, 'answer section')) {
       $answer = TRUE;
@@ -357,7 +422,7 @@ function urls_monitor_parse_dig($url) {
     if ($answer
         && preg_match('/(\d+)\sIN\sA\s([\d\.]+)$/', $value, $parsed)) {
       $parsed = array(
-        'ttl' => $parsed[1],
+        'ttl' => (!$auth_ns ? '~' : '') . $parsed[1],
         'ip' => $parsed[2],
       );
       break;
@@ -401,13 +466,10 @@ function urls_monitor_preprocess_row(&$row) {
   $row['data']['status'] = empty($conf['status'][$row['data']['status']]) ?
     $row['data']['status'] :
     $conf['status'][$row['data']['status']];
-  $row['class'][] = urls_monitor_css_safe(urls_monitor_alias($row['data']['status']));
-
-  // Add a link to the website
-  $display = $host;
+  $row['class'][] = urls_monitor_css_safe(urls_monitor_alias($row['data']['status'], 'status'));
 
   // Link to website
-  $row['data']['host'] = $display . '<a class="external-link" href="' . $row['data']['url'] . '" onclick="window.open(this.href); return false;"><img src="/images/external.png" /></a>';
+  $row['data']['host'] = $row['data']['url'] . '<a class="external-link" href="' . $row['data']['url'] . '" onclick="window.open(this.href); return false;"><img src="/images/external.png" /></a>';
   unset($row['data']['url']);
 
   // Link to the actual ip if different from alias

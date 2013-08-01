@@ -39,6 +39,7 @@ tr.error,
 /*Class to apply while actively ajax checking*/
 tr.checking {
   background-color: #feffae;
+  color: #aaa;
 }
 table.tablesorter thead tr .header {
 	background-image: url(/images/bg.gif);

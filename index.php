@@ -30,6 +30,7 @@ foreach ($domains as $domain) {
     $header = array_keys($row['data']);
   }
 }
+
 // Translate the headers
 foreach ($header as $key => $value) {
   $header[$key] = urls_monitor_alias($value);
@@ -42,6 +43,7 @@ $output = urls_monitor_theme_table($rows, array(
   'id' => 'monitor-results',
   'class' => 'tablesorter'
 ), $header);
+
 print urls_monitor_page(array('body' => $output));
 exit();
 
