@@ -16,6 +16,7 @@ define('URLS_MONITOR_BLANK', '-');
 /**
  * Bootstrap
  */
+
 global $conf;
 $config_file = urls_monitor_get_config_dir() . '/config.ini';
 if (!file_exists($config_file)) {
@@ -32,9 +33,9 @@ $conf += array(
 );
 $conf['columns'] = array_filter($conf['columns']);
 
-$storage = urls_monitor_get_storage_dir();
-if (!is_dir($storage)) {
-  mkdir($storage);
+if (file_exists('vendor/autoload.php')) {
+  require 'vendor/autoload.php';
+  $conf['exports'] = class_exists('ExportData');
 }
 
 /**
@@ -43,7 +44,12 @@ if (!is_dir($storage)) {
  * @return string
  */
 function urls_monitor_get_storage_dir() {
-  return getcwd() . '/config/.config';
+  $storage = getcwd() . '/config/.config';
+  if (!is_dir($storage)
+      || !is_dir($storage . '/vars')) {
+    mkdir($storage . '/vars', 0777, TRUE);
+  }
+  return $storage;
 }
 
 /**
@@ -55,7 +61,7 @@ function urls_monitor_get_storage_dir() {
  */
 function urls_monitor_get_persistent($var) {
   $value = NULL;
-  $file = urls_monitor_get_storage_dir() . '/var_' . $var . '.txt';
+  $file = urls_monitor_get_storage_dir() . '/vars/' . md5($var) . '.txt';
   if (file_exists($file)
       && ($contents = file_get_contents($file))) {
     $value = trim($contents);
@@ -71,7 +77,7 @@ function urls_monitor_get_persistent($var) {
  * @param string $value
  */
 function urls_monitor_set_persistent($var, $value) {
-  $file = urls_monitor_get_storage_dir() . '/var_' . $var . '.txt';
+  $file = urls_monitor_get_storage_dir() . '/vars/' . md5($var) . '.txt';
   $fh = fopen($file, 'w');
   fwrite($fh, $value);
   fclose($fh);
@@ -199,11 +205,24 @@ function urls_monitor_alias($raw, $conf_key = 'alias') {
 }
 
 /**
+ * Return an id based on an url
+ *
+ * @param string $url
+ *
+ * @return string
+ */
+function urls_monitor_make_id($url) {
+  return preg_replace('/^https?:\/\//', '', $url);
+}
+
+/**
  * Return an status array for a domain
  *
- * @param string $host
+ * @param string $id
  * @param bool $skip_curl
  *   Set to true to skip the actual curl call
+ * @param bool $user_cache
+ *   (Optional) Defaults to FALSE.
  *
  * @return array
  *   - host
@@ -212,12 +231,15 @@ function urls_monitor_alias($raw, $conf_key = 'alias') {
  *
  * @todo figure out why the session doesn't pass in the curl calls
  */
-function urls_monitor_check($host, $skip_curl = FALSE) {
+function urls_monitor_check($url, $skip_curl = FALSE, $use_cache = FALSE) {
   global $conf;
 
-  if (!($parsed = urls_monitor_parse_url($host))) {
+  if (!($parsed = urls_monitor_parse_url($url))) {
     return;
   }
+
+  // This is the url minus the protocol
+  $id = urls_monitor_make_id($url);
 
   // juggle this around so the column order is based on config.ini
   $result = array_fill_keys(array_keys($conf['columns']), NULL);
@@ -231,6 +253,13 @@ function urls_monitor_check($host, $skip_curl = FALSE) {
   $result['redirected']   = URLS_MONITOR_BLANK;
   $result['ip']           = URLS_MONITOR_BLANK;
   $result['ttl']          = URLS_MONITOR_BLANK;
+
+  if ($use_cache
+      && isset($parsed['url'])
+      && ($cached = urls_monitor_get_persistent($parsed['url']))
+      && ($cached = json_decode($cached))) {
+    $result = (array) $cached + $result;
+  }
 
   if ($skip_curl) {
     return $result;
@@ -253,14 +282,14 @@ function urls_monitor_check($host, $skip_curl = FALSE) {
 
   $userpwd = FALSE;
   if (array_key_exists('httpauth', $conf)) {
-    if (!empty($conf['httpauth'][$host])) {
-      $userpwd = $conf['httpauth'][$host];
+    if (!empty($conf['httpauth'][$id])) {
+      $userpwd = $conf['httpauth'][$id];
     }
     else {
       foreach ($conf['httpauth'] as $regex => $value) {
         if (substr($value, 0, 1) === '/') {
           $regex = trim($regex, '/');
-          if (preg_match('/' . $regex . '/', $host)) {
+          if (preg_match('/' . $regex . '/', $id)) {
             $userpwd = $value;
             break;
           }
@@ -290,16 +319,18 @@ function urls_monitor_check($host, $skip_curl = FALSE) {
   $info = curl_getinfo($curl);
   curl_close($curl);
 
+  // Determine if this redirects
   if ($conf['redirect_count']) {
     $result['redirects'] = $info['redirect_count'];
   }
 
-  // Determine if this redirects
-  $redirect = urls_monitor_parse_url($info['url']);
-  if (strcasecmp($info['url'], $result['url'])) {
-    $result['redirected'] = $redirect['host'];
-    if ($conf['redirect_full_path'] &&  !empty($redirect['path'])) {
-      $result['redirected'] .= $redirect['path'];
+  if ($result['redirects']) {
+    $redirect = urls_monitor_parse_url($info['url']);
+    if (strcasecmp($info['url'], $result['url'])) {
+      $result['redirected'] = $redirect['host'];
+      if ($conf['redirect_full_path'] &&  !empty($redirect['path'])) {
+        $result['redirected'] .= $redirect['path'];
+      }
     }
   }
 
@@ -452,13 +483,13 @@ function urls_monitor_parse_dig($url) {
 function urls_monitor_preprocess_row(&$row) {
   global $conf;
 
-  $host = $row['data']['host'];
+  $id = urls_monitor_make_id($row['data']['url']);
 
   $row['class'][] = urls_monitor_css_safe(urls_monitor_alias($row['data']['ip']));
 
   // Ajax reload
   $row['data']['check'] = array(
-    'data' => '<a href="#" onclick="return false;" class="ajax-check" rel="' . $host . '"><img src="/images/reload.gif" alt="ajax-reload-icon" /></a>',
+    'data' => '<a href="#" onclick="return false;" class="ajax-check" rel="' . $row['data']['url'] . '"><img src="/images/reload.gif" alt="ajax-reload-icon" /></a>',
     'class' => array('ajax'),
   );
 
@@ -469,8 +500,8 @@ function urls_monitor_preprocess_row(&$row) {
   $row['class'][] = urls_monitor_css_safe(urls_monitor_alias($row['data']['status'], 'status'));
 
   // Link to website
-  $row['data']['host'] = $row['data']['url'] . '<a class="external-link" href="' . $row['data']['url'] . '" onclick="window.open(this.href); return false;"><img src="/images/external.png" /></a>';
-  unset($row['data']['url']);
+  $row['data']['url'] = $id . '<a class="external-link" href="' . $row['data']['url'] . '" onclick="window.open(this.href); return false;"><img src="/images/external.png" /></a>';
+  unset($row['data']['host']);
 
   // Link to the actual ip if different from alias
   if (($alias = urls_monitor_alias($row['data']['ip'])) && $alias != $row['data']['ip']) {
@@ -479,13 +510,13 @@ function urls_monitor_preprocess_row(&$row) {
 
   // Link to see the find text for this url
   if ($row['data']['password'] == 'un-locked') {
-    $row['data']['password'] .= '<a class="external-link" href="javascript:alert(\'' . $conf['httpauth'][$host] . '\'); return false;" title="' . $conf['httpauth'][$host] . '"><img src="/images/external.png" /></a>';
+    $row['data']['password'] .= '<a class="external-link" href="javascript:alert(\'' . $conf['httpauth'][$id] . '\'); return false;" title="' . $conf['httpauth'][$id] . '"><img src="/images/external.png" /></a>';
   }
 
   // Link to see the find text for this url
   if ($row['data']['text'] != URLS_MONITOR_BLANK
-      && $conf['find'][$host]) {
-    $row['data']['text'] .= '<a class="external-link" href="javascript:alert(\'' . $conf['find'][$host] . '\'); return false;" title="' . $conf['find'][$host] . '"><img src="/images/external.png" /></a>';
+      && isset($conf['find'][$id])) {
+    $row['data']['text'] .= '<a class="external-link" href="javascript:alert(\'' . $conf['find'][$id] . '\'); return false;" title="' . $conf['find'][$id] . '"><img src="/images/external.png" /></a>';
   }
 
   // We have to have the check column set to true or ajax won't work
@@ -514,6 +545,8 @@ function urls_monitor_preprocess_row(&$row) {
  *   The html for a table
  */
 function urls_monitor_theme_table($rows, $attributes = array(), $header = array()) {
+  global $conf;
+
   $output = '';
 
   $attr = array();
@@ -550,6 +583,21 @@ function urls_monitor_theme_table($rows, $attributes = array(), $header = array(
     $output .= urls_monitor_theme_tr($rows[$row_key], $alt) . "\n";
   }
   $output .= '</table>'."\n";
+
+  // Add export links if enabled
+  if ($conf['exports']) {
+    $links = array();
+    $query = '&export=1&q=' . urls_monitor_get_page();
+    $links[] = array('Export (.csv)', 'index.php?format=csv' . $query);
+
+    //@todo figure out the bug on this
+    //$links[] = array('Export (.xls)', 'index.php?format=xls' . $query);
+    foreach ($links as $key => $link) {
+      $links[$key] = '<a href="/' . $link[1] . '">' . $link[0] . '</a>' . "\n";
+    }
+    $output .= '<div class="links export-links">' . implode(' ', $links) . '</div>' . "\n";
+  }
+
   return $output;
 }
 

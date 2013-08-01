@@ -11,6 +11,7 @@ h2 {
 h2 {
   margin: 5px 0;
 }
+.links,
 table {
   width: 80%;
   margin: 10px auto;
@@ -82,4 +83,9 @@ a.external-link {
   right: 0;
   padding: 3px;
   font-size: 11px;
+}
+.export-links a {
+  float: right;
+  margin-left: 20px;
+  font-size: 12px;
 }
