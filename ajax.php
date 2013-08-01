@@ -16,6 +16,8 @@ if (!empty($_REQUEST['op'])
       $args = array($_GET['host']);
       $return = call_user_func_array($_REQUEST['op'], $args);
       $output = json_encode($return);
+      urls_monitor_set_persistent(implode(':', $args), $output);
+
       header('Content-Type: application/json');
       break;
 

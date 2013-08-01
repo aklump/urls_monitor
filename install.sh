@@ -54,8 +54,13 @@
 # @ingroup urls_monitor
 # @{
 #
-
 start_dir=$(PWD);
+
+# Install packages using composer
+composer=$(which composer)
+if [ "$composer" ] && [ ! -f composer.lock ]; then
+  composer install
+fi
 
 # Gleen the page name
 if [ $# -ne 1 ]

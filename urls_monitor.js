@@ -53,7 +53,8 @@
     // Click handler for ajax checking
     $('a.ajax-check').click(function() {
       $row = $(this).parents('tr');
-      var data = UrlsMonitor.check($(this).attr('rel'), $row);
+      var host = $(this).attr('rel');
+      UrlsMonitor.check(host, $row);
     });
 
     // Jump menu support
