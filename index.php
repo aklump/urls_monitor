@@ -71,6 +71,15 @@ if (isset($_GET['export']) && $_GET['export']) {
     case 'txt':
       $exporter = new FlatTextExporter($export);
       break;
+    case 'xml':
+      $exporter = new XMLExporter($export);
+      break;
+    case 'json':
+      $exporter = new JSONExporter($export);
+      break;
+    case 'yaml':
+      $exporter = new YAMLExporter($export);
+      break;
   }
   $filename = preg_replace('/[^a-z0-9\-]/', '-', urls_monitor_get_page()) . date('_Ymd_Hs');
   $exporter->save($filename);
