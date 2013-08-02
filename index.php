@@ -47,6 +47,10 @@ if (isset($_GET['export']) && $_GET['export']) {
         case 'check':
           continue;
         default:
+          $value = strip_tags($value);
+          if ($value === URLS_MONITOR_BLANK) {
+            $value = '';
+          }
           $export->add($key, $value);
           break;
       }
@@ -60,6 +64,12 @@ if (isset($_GET['export']) && $_GET['export']) {
       break;
     case 'xls':
       $exporter = new XLSXExporter($export);
+      break;
+    case 'html':
+      $exporter = new HTMLExporter($export);
+      break;
+    case 'txt':
+      $exporter = new FlatTextExporter($export);
       break;
   }
   $filename = preg_replace('/[^a-z0-9\-]/', '-', urls_monitor_get_page()) . date('_Ymd_Hs');
