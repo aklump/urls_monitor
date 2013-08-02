@@ -589,9 +589,9 @@ function urls_monitor_theme_table($rows, $attributes = array(), $header = array(
     $links = array();
     $query = '&export=1&q=' . urls_monitor_get_page();
     $links[] = array('Export (.csv)', 'index.php?format=csv' . $query);
-
-    //@todo figure out the bug on this
-    //$links[] = array('Export (.xls)', 'index.php?format=xls' . $query);
+    $links[] = array('Export (.xls)', 'index.php?format=xls' . $query);
+    $links[] = array('Export (.html)', 'index.php?format=html' . $query);
+    $links[] = array('Export (.txt)', 'index.php?format=txt' . $query);
     foreach ($links as $key => $link) {
       $links[$key] = '<a href="/' . $link[1] . '">' . $link[0] . '</a>' . "\n";
     }
