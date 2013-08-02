@@ -6,6 +6,7 @@
  * @ingroup urls-monitor
  * @{
  */
+
 /**
  * @var URLS_MONITOR_BLANK
  *
@@ -268,9 +269,9 @@ function urls_monitor_check($url, $skip_curl = FALSE, $use_cache = FALSE) {
   $timeout = empty($conf['timeout']) ? 10 : $conf['timeout'];
 
   // are we looking for content on this page?
-  $find = !empty($conf['find'][$result['host']]);
+  $find = !empty($conf['find'][$id]);
 
-  $curl = curl_init($result['host']);
+  $curl = curl_init($result['url']);
   curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, $timeout);
   curl_setopt($curl, CURLOPT_TIMEOUT, $timeout);
   curl_setopt($curl, CURLOPT_NOBODY, !$find);
@@ -326,7 +327,7 @@ function urls_monitor_check($url, $skip_curl = FALSE, $use_cache = FALSE) {
 
   if ($result['redirects']) {
     $redirect = urls_monitor_parse_url($info['url']);
-    if (strcasecmp($info['url'], $result['url'])) {
+    if (strcasecmp(rtrim($info['url'], '/'), rtrim($result['url'], '/'))) {
       $result['redirected'] = $redirect['host'];
       if ($conf['redirect_full_path'] &&  !empty($redirect['path'])) {
         $result['redirected'] .= $redirect['path'];
@@ -347,7 +348,7 @@ function urls_monitor_check($url, $skip_curl = FALSE, $use_cache = FALSE) {
   if ($result['status'] && $result['status'] < 300 && $find) {
     $result['status'] = 2;
     $haystack = substr($data, $info['header_size']);
-    $needles = $conf['find'][$result['host']];
+    $needles = $conf['find'][$id];
 
     //@todo there is no support yet in the configuration to make this an array;
     //come up with one
@@ -588,13 +589,17 @@ function urls_monitor_theme_table($rows, $attributes = array(), $header = array(
   if ($conf['exports']) {
     $links = array();
     $query = '&export=1&q=' . urls_monitor_get_page();
-    $links[] = array('Export (.csv)', 'index.php?format=csv' . $query);
-    $links[] = array('Export (.xls)', 'index.php?format=xls' . $query);
-    $links[] = array('Export (.html)', 'index.php?format=html' . $query);
-    $links[] = array('Export (.txt)', 'index.php?format=txt' . $query);
+    $links[] = array('CSV (.csv)', 'index.php?format=csv' . $query);
+    $links[] = array('Excel (.xls)', 'index.php?format=xls' . $query);
+    $links[] = array('Web (.html)', 'index.php?format=html' . $query);
+    $links[] = array('FlatFile (.txt)', 'index.php?format=txt' . $query);
+    $links[] = array('XML (.xml)', 'index.php?format=xml' . $query);
+    $links[] = array('Javascript (.json)', 'index.php?format=json' . $query);
+    $links[] = array('YAML (.yaml)', 'index.php?format=yaml' . $query);
     foreach ($links as $key => $link) {
       $links[$key] = '<a href="/' . $link[1] . '">' . $link[0] . '</a>' . "\n";
     }
+    $links = array_reverse($links);
     $output .= '<div class="links export-links">' . implode(' ', $links) . '</div>' . "\n";
   }
 
