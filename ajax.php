@@ -7,10 +7,9 @@
  * @{
  */
 require_once('functions.inc');
-global $conf;
+require_once('bootstrap.inc');
 
-if (!empty($_REQUEST['op'])
-    && function_exists($_REQUEST['op'])) {
+if (!empty($_REQUEST['op']) && function_exists($_REQUEST['op'])) {
   switch ($_REQUEST['op']) {
     case 'urls_monitor_check':
       $args = array($_GET['host']);

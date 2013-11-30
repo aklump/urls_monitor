@@ -10,7 +10,7 @@
  * @todo - refigure the ip via header?
  */
 require_once('functions.inc');
-global $conf;
+require_once('bootstrap.inc');
 
 /**
  * Configuration Checking
@@ -25,6 +25,7 @@ foreach ($domains as $domain) {
     'data' => urls_monitor_check($domain, TRUE, isset($_GET['export']) && $_GET['export']),
   );
   urls_monitor_preprocess_row($row);
+
   $rows[] = $row;
   if (empty($header)) {
     $header = array_keys($row['data']);
@@ -81,7 +82,14 @@ if (isset($_GET['export']) && $_GET['export']) {
       $exporter = new YAMLExporter($export);
       break;
   }
-  $filename = preg_replace('/[^a-z0-9\-]/', '-', urls_monitor_get_page()) . date('_Ymd_Hs');
+  $now = urls_monitor_date_now();
+  $filename = $conf['export_filename'];
+  $filename = str_replace('${project}', preg_replace('/[^a-z0-9\-]/', '-', urls_monitor_get_page()), $filename);
+  $filename = str_replace('${year}'   , $now->format('Y'), $filename);
+  $filename = str_replace('${month}'  , $now->format('m'), $filename);
+  $filename = str_replace('${day}'    , $now->format('d'), $filename);
+  $filename = str_replace('${hour}'   , $now->format('H'), $filename);
+  $filename = str_replace('${second}' , $now->format('s'), $filename);
   $exporter->save($filename);
 }
 

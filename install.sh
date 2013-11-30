@@ -65,9 +65,15 @@ fi
 # Gleen the page name
 if [ $# -ne 1 ]
 then
-  page='default'
+  echo "`tput setaf 1`Please provide a project name as the argument.`tput op`"
+  exit
 else
   page=$1
+fi
+
+if [[ -d "config/$page" ]]; then
+  echo "`tput setaf 1`The project '$page' already exists.`tput op`"
+  exit
 fi
 
 # Make sure the directory exists
@@ -84,6 +90,10 @@ fi
 if [ ! -f urls.txt ]
 then
   cp "$start_dir/config/default/urls.default.txt" urls.txt
+fi
+if [ ! -f meta.yaml ]
+then
+  cp "$start_dir/config/default/meta.default.yaml" meta.yaml
 fi
 
 cd $start_dir
@@ -103,8 +113,8 @@ fi
 # Check for success
 if [ -f jquery.tablesorter.min.js ] && [ -f config/$page/config.ini ] && [ -f config/$page/urls.txt ]
 then
-  echo 'Installation complete.'
-  echo "Please edit config/$page/urls.txt and config/$page/config.ini now.";
+  echo "`tput setaf 2`Installation complete.`tput op`"
+  echo "`tput setaf 2`Please edit config/$page/urls.txt now.`tput op`"
 else
-  echo 'Installation failed.'
+  echo "`tput setaf 1`Installation failed.`tput op`"
 fi

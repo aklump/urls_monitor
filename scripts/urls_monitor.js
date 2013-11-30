@@ -48,6 +48,7 @@
      ajax calls to update the DOM
    */
   UrlsMonitor.attachBehaviors = function() {
+
     $('table.tablesorter').trigger('update');
 
     // Click handler for ajax checking
@@ -75,6 +76,7 @@
   * Core behavior for urls_monitor.
   */
   $(document).ready(function() {
+
     // Ajax message
     $(document).ajaxStart(function() {
       $('#loading').show();
@@ -84,10 +86,15 @@
     });
     UrlsMonitor.attachBehaviors();
 
+    if (window.location.hash == '#demo') {
+      $('#loading').show();
+      return;      
+    }
+    
     // Fire all click handlers on load
     $('a.ajax-check').each(function() {
       $(this).click();
-    });
+    });    
   });
 
   /**

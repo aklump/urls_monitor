@@ -1,4 +1,6 @@
 <?php
+use Symfony\Component\Yaml\Yaml;
+
 /**
  * @file
  * Defines the functinos
@@ -15,28 +17,15 @@
 define('URLS_MONITOR_BLANK', '-');
 
 /**
- * Bootstrap
+ * Return current time as date object
+ *
+ * @return DateTime
+ *
+ * @see $conf['timezone']
  */
-
-global $conf;
-$config_file = urls_monitor_get_config_dir() . '/config.ini';
-if (!file_exists($config_file)) {
-  urls_monitor_fatal('Please create config.ini and try again.');
-}
-
-$conf = parse_ini_file($config_file);
-$conf += array(
-  'alias' => array(),
-  'status' => array(),
-  'columns' => array(),
-  'find' => array(),
-  'httpauth' => array(),
-);
-$conf['columns'] = array_filter($conf['columns']);
-
-if (file_exists('vendor/autoload.php')) {
-  require 'vendor/autoload.php';
-  $conf['exports'] = class_exists('ExportData');
+function urls_monitor_date_now() {
+  global $conf;
+  return new DateTime('now', new DateTimeZone($conf['timezone']));
 }
 
 /**
@@ -101,10 +90,37 @@ function urls_monitor_get_page() {
 }
 
 /**
- * Get the current config directory
+ * Get the path to a config file for the current page
+ *
+ * If not found, the parent directory will be search recrusively until we're
+ * at the top level of the configuration dirs.
+ *
+ * @param  string $file The filename, e.g. urls.txt or config.ini
+ *
+ * @return string       The full filepath to the file
  */
-function urls_monitor_get_config_dir() {
-  return getcwd() . '/config/' . urls_monitor_get_page();
+function urls_monitor_get_config($file) {
+  $path = getcwd() . '/config/' . urls_monitor_get_page() . "/$file";
+  $path = _urls_monitor_find_config($file, $path);
+
+  return $path;
+}
+
+function _urls_monitor_find_config($file, &$path) {
+  $info = pathinfo($path);
+  $basename = $info['basename'];
+  if ($info['basename'] === 'config') {
+    return $path;
+  }
+  elseif ($info['basename'] === $file && is_file($path)) {
+    return $path;
+  }
+  else {
+    $path = pathinfo($info['dirname']);
+    $path = $path['dirname'] . "/$file";
+
+    return _urls_monitor_find_config($file, $path);
+  }
 }
 
 /**
@@ -116,10 +132,8 @@ function urls_monitor_get_pages() {
   $recursive = TRUE;
   $files = urls_monitor_list_files($directory, $recursive);
   foreach ($files as $file) {
-    if (substr($file, -11) == '/config.ini') {
-      if (($page = substr($file, 7, -11))) {
-        $pages[$page] = $page;
-      }
+    if (preg_match('/^config\/(.+?)\/urls\.txt/', $file, $matches)) {
+      $pages[$matches[1]] = $matches[1];
     }
   }
   asort($pages);
@@ -157,7 +171,7 @@ function urls_monitor_list_files($directory, $recursive) {
 function urls_monitor_urls() {
   static $domains = array();
   if (empty($domains)) {
-    $filename = urls_monitor_get_config_dir() . '/urls.txt';
+    $filename = urls_monitor_get_config('urls.txt');
     $domains = array();
     if (is_readable($filename) &&
         ($domains = file($filename))) {
@@ -220,8 +234,9 @@ function urls_monitor_make_id($url) {
  * Return an status array for a domain
  *
  * @param string $id
- * @param bool $skip_curl
- *   Set to true to skip the actual curl call
+ * @param bool $skip_lookup
+ *   Set to true to skip the lookups (used when first load since ajax does the
+ *   work.)
  * @param bool $user_cache
  *   (Optional) Defaults to FALSE.
  *
@@ -232,7 +247,7 @@ function urls_monitor_make_id($url) {
  *
  * @todo figure out why the session doesn't pass in the curl calls
  */
-function urls_monitor_check($url, $skip_curl = FALSE, $use_cache = FALSE) {
+function urls_monitor_check($url, $skip_lookup = FALSE, $use_cache = FALSE) {
   global $conf;
 
   if (!($parsed = urls_monitor_parse_url($url))) {
@@ -242,18 +257,31 @@ function urls_monitor_check($url, $skip_curl = FALSE, $use_cache = FALSE) {
   // This is the url minus the protocol
   $id = urls_monitor_make_id($url);
 
+  $parsed += urls_monitor_get_meta($id);
+
   // juggle this around so the column order is based on config.ini
   $result = array_fill_keys(array_keys($conf['columns']), NULL);
   foreach ($parsed as $key => $value) {
     $result[$key] = $value;
   }
-  $result['status']       = URLS_MONITOR_BLANK;
-  $result['text']         = URLS_MONITOR_BLANK;
-  $result['password']     = URLS_MONITOR_BLANK;
-  $result['redirects']    = URLS_MONITOR_BLANK;
-  $result['redirected']   = URLS_MONITOR_BLANK;
-  $result['ip']           = URLS_MONITOR_BLANK;
-  $result['ttl']          = URLS_MONITOR_BLANK;
+
+  $result += array(
+    'status'        => NULL, 
+    'text'          => NULL, 
+    'password'      => NULL, 
+    'redirects'     => NULL, 
+    'redirected'    => NULL, 
+    'ip'            => NULL, 
+    'ttl'           => NULL,
+    'ftp_status'    => NULL,  
+  );
+
+  // Detect spaces which will cause a problem
+  foreach (array_keys($result) as $key) {
+    if (strstr($key, ' ')) {
+      urls_monitor_fatal("Row key: <strong>\"$key\"</strong> cannot contain a space; use an alias instead. Found in <em>$id</em>.");
+    }
+  }
 
   if ($use_cache
       && isset($parsed['url'])
@@ -262,126 +290,202 @@ function urls_monitor_check($url, $skip_curl = FALSE, $use_cache = FALSE) {
     $result = (array) $cached + $result;
   }
 
-  if ($skip_curl) {
+  // Valid types are:
+  // - website: all possible dynamic fields
+  // - ftp; ftp connection only
+  // - comment: no dynamic fields
+  $skip_website = FALSE;
+  switch (urls_monitor_get_property($id, 'type')) {
+    case 'comment':
+      $result['status'] = NULL;
+      $skip_lookup = TRUE;
+      break;
+
+    case 'ftp':
+      $skip_website = TRUE;
+      break;
+  }
+
+  if ($skip_lookup) {
     return $result;
   }
 
-  $timeout = empty($conf['timeout']) ? 10 : $conf['timeout'];
+  if (!$skip_website) {
+    // From here on out we do the heavy lifting of this
+    $timeout = empty($conf['timeout']) ? 10 : $conf['timeout'];
 
-  // are we looking for content on this page?
-  $find = !empty($conf['find'][$id]);
+    // are we looking for content on this page?
+    $find = !empty($conf['find'][$id]);
 
-  $curl = curl_init($result['url']);
-  curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, $timeout);
-  curl_setopt($curl, CURLOPT_TIMEOUT, $timeout);
-  curl_setopt($curl, CURLOPT_NOBODY, !$find);
-  curl_setopt($curl, CURLOPT_HEADER, TRUE);
-  curl_setopt($curl, CURLOPT_FOLLOWLOCATION, TRUE);
-  curl_setopt($curl, CURLOPT_FRESH_CONNECT, TRUE);
-  curl_setopt($curl, CURLOPT_RETURNTRANSFER, TRUE);
-  curl_setopt($curl, CURLOPT_AUTOREFERER, TRUE);
+    $curl = curl_init($result['url']);
+    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, $timeout);
+    curl_setopt($curl, CURLOPT_TIMEOUT, $timeout);
+    curl_setopt($curl, CURLOPT_NOBODY, !$find);
+    curl_setopt($curl, CURLOPT_HEADER, TRUE);
+    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, TRUE);
+    curl_setopt($curl, CURLOPT_FRESH_CONNECT, TRUE);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, TRUE);
+    curl_setopt($curl, CURLOPT_AUTOREFERER, TRUE);
 
-  $userpwd = FALSE;
-  if (array_key_exists('httpauth', $conf)) {
-    if (!empty($conf['httpauth'][$id])) {
-      $userpwd = $conf['httpauth'][$id];
-    }
-    else {
-      foreach ($conf['httpauth'] as $regex => $value) {
-        if (substr($value, 0, 1) === '/') {
-          $regex = trim($regex, '/');
-          if (preg_match('/' . $regex . '/', $id)) {
-            $userpwd = $value;
-            break;
+    $userpwd = FALSE;
+    if (array_key_exists('httpauth', $conf)) {
+      if (!empty($conf['httpauth'][$id])) {
+        $userpwd = $conf['httpauth'][$id];
+      }
+      else {
+        foreach ($conf['httpauth'] as $regex => $value) {
+          if (substr($value, 0, 1) === '/') {
+            $regex = trim($regex, '/');
+            if (preg_match('/' . $regex . '/', $id)) {
+              $userpwd = $value;
+              break;
+            }
           }
+        }
+      }
+
+      if ($userpwd) {
+
+        // Make a call and make sure its 401 first
+        $data = curl_exec($curl);
+        $info = curl_getinfo($curl);
+        if (!($lock_test = $info['http_code'] == 401)) {
+          $result['password'] = 'missing';
+        }
+        else {
+          $result['password'] = 'locked';
+        }
+
+        // Now set the credentials provided
+        curl_setopt($curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
+        curl_setopt($curl, CURLOPT_USERPWD, $userpwd);
+      }
+    }
+
+    $data = curl_exec($curl);
+    $info = curl_getinfo($curl);
+    curl_close($curl);
+
+    // Determine if this redirects
+    if ($conf['redirect_count']) {
+      $result['redirects'] = $info['redirect_count'];
+    }
+
+    if ($result['redirects']) {
+      $redirect = urls_monitor_parse_url($info['url']);
+      if (strcasecmp(rtrim($info['url'], '/'), rtrim($result['url'], '/'))) {
+        $result['redirected'] = $redirect['host'];
+        if ($conf['redirect_full_path'] &&  !empty($redirect['path'])) {
+          $result['redirected'] .= $redirect['path'];
         }
       }
     }
 
-    if ($userpwd) {
+    $result['status'] = $info['http_code'];
 
-      // Make a call and make sure its 401 first
-      $data = curl_exec($curl);
-      $info = curl_getinfo($curl);
-      if (!($lock_test = $info['http_code'] == 401)) {
-        $result['password'] = 'missing';
-      }
-      else {
-        $result['password'] = 'locked';
-      }
-
-      // Now set the credentials provided
-      curl_setopt($curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
-      curl_setopt($curl, CURLOPT_USERPWD, $userpwd);
+    // Password status
+    if ($userpwd
+        && !in_array($result['password'], array('missing', 'no', '-'))
+        && $result['status'] != 401) {
+      $result['password'] = 'un-locked';
     }
-  }
 
-  $data = curl_exec($curl);
-  $info = curl_getinfo($curl);
-  curl_close($curl);
+    // Only look for string if we haven't any errors
+    if ($result['status'] && $result['status'] < 300 && $find) {
+      $result['status'] = 2;
+      $haystack = substr($data, $info['header_size']);
+      $needles = $conf['find'][$id];
 
-  // Determine if this redirects
-  if ($conf['redirect_count']) {
-    $result['redirects'] = $info['redirect_count'];
-  }
-
-  if ($result['redirects']) {
-    $redirect = urls_monitor_parse_url($info['url']);
-    if (strcasecmp(rtrim($info['url'], '/'), rtrim($result['url'], '/'))) {
-      $result['redirected'] = $redirect['host'];
-      if ($conf['redirect_full_path'] &&  !empty($redirect['path'])) {
-        $result['redirected'] .= $redirect['path'];
+      //@todo there is no support yet in the configuration to make this an array;
+      //come up with one
+      if (!is_array($needles)) {
+        $needles = array($needles);
+      }
+      $found = 0;
+      // performs and and search
+      foreach ($needles as $needle) {
+        if (strstr($haystack, $needle)) {
+          $found++;
+        }
+      }
+      $result['text'] = 'missing';
+      if ($found == count($needles)) {
+        $result['status'] = $info['http_code'];
+        $result['text'] = 'ok';
       }
     }
-  }
 
-  $result['status'] = $info['http_code'];
-
-  // Password status
-  if ($userpwd
-      && !in_array($result['password'], array('missing', 'no', '-'))
-      && $result['status'] != 401) {
-    $result['password'] = 'un-locked';
-  }
-
-  // Only look for string if we haven't any errors
-  if ($result['status'] && $result['status'] < 300 && $find) {
-    $result['status'] = 2;
-    $haystack = substr($data, $info['header_size']);
-    $needles = $conf['find'][$id];
-
-    //@todo there is no support yet in the configuration to make this an array;
-    //come up with one
-    if (!is_array($needles)) {
-      $needles = array($needles);
+    if ($ip = gethostbyname($result['host'])) {
+      $result['ip'] = $ip;
     }
-    $found = 0;
-    // performs and and search
-    foreach ($needles as $needle) {
-      if (strstr($haystack, $needle)) {
-        $found++;
+
+    // TTL using dig
+    if (($dig = urls_monitor_parse_dig($result['host']))
+        && !empty($dig['ttl'])) {
+      $result['ttl'] = $dig['ttl'];
+    }
+
+    // set status for a missing lock
+    if ($result['password'] == 'missing') {
+      $result['status'] = 1;
+    }
+  }
+
+  // Process the ftp
+  $skip_ftp = empty($result['ftph']) || empty($result['ftpu']) || empty($result['ftpp']);
+  if (!$skip_ftp) {
+    // do the ftp test
+    if (!($stream = @ftp_connect($result['ftph']))) {
+      $result['ftp_status'] = 404;
+    }
+    elseif (!(@ftp_login($stream, $result['ftpu'], $result['ftpp']))) {
+      $result['ftp_status'] = 403;
+    }
+    else {
+      // we're in, now test the rwx perms
+      $result['ftp_status'] = array();
+      $now      = urls_monitor_date_now();
+
+      // Create a temp file to put
+      $send     = tempnam(sys_get_temp_dir(), $id . '.' . $now->format('U') . '.');
+      $fhandle  = fopen($send, 'w');
+      fwrite($fhandle, 'FTP connection test send by urls_monitor');
+      fclose($fhandle);
+
+      // Create a path destination for get
+      $receive  = tempnam(sys_get_temp_dir(), $id . '.' . $now->format('U') . '.');
+      unlink($receive);
+
+      $filename = pathinfo($send);
+      $filename = $filename['basename'];
+
+      $filename = 'test';
+
+      // Create a folder and chdir in
+      if (!@ftp_mkdir($stream, $filename)) {
+        if (@ftp_get($stream, $receive, $filename, FTP_ASCII)) {
+          $result['ftp_status'] = 409;
+        }
+        $result['ftp_status'] = 405;
       }
+      elseif (@ftp_chdir($stream, $filename)) {
+        $result['ftp_status'][] = 'x';
+        if (@ftp_put($stream, $filename, $send, FTP_ASCII)) {
+          $result['ftp_status'][] = 'w';
+          if (@ftp_get($stream, $receive, $filename, FTP_ASCII)) {
+            $result['ftp_status'][] = 'r';
+          }
+          @ftp_delete($stream, $filename);
+          @ftp_chdir($stream, '..');
+          @ftp_rmdir($stream, $filename);
+        }
+
+        sort($result['ftp_status']);
+        $result['ftp_status'] = implode($result['ftp_status']);
+      }
+
+      @ftp_close($stream);
     }
-    $result['text'] = 'missing';
-    if ($found == count($needles)) {
-      $result['status'] = $info['http_code'];
-      $result['text'] = 'ok';
-    }
-  }
-
-  if ($ip = gethostbyname($result['host'])) {
-    $result['ip'] = $ip;
-  }
-
-  // TTL using dig
-  if (($dig = urls_monitor_parse_dig($result['host']))
-      && !empty($dig['ttl'])) {
-    $result['ttl'] = $dig['ttl'];
-  }
-
-  // set status for a missing lock
-  if ($result['password'] == 'missing') {
-    $result['status'] = 1;
   }
 
   return $result;
@@ -395,6 +499,7 @@ function urls_monitor_check($url, $skip_curl = FALSE, $use_cache = FALSE) {
  * @return array
  *   - schema
  *   - host
+ *   - url
  */
 function urls_monitor_parse_url($url) {
   $url = strtolower(trim($url, '/'));
@@ -486,23 +591,58 @@ function urls_monitor_preprocess_row(&$row) {
 
   $id = urls_monitor_make_id($row['data']['url']);
 
+  // Status alias and class
+  if (!empty($row['data']['status'])) {
+    $row['class'][] = urls_monitor_css_safe('status-' . $row['data']['status']);
+    $row['data']['status'] = empty($conf['status'][$row['data']['status']]) ?
+      $row['data']['status'] :
+      $conf['status'][$row['data']['status']];
+  }
+  
+  // FTP Status alias and class
+  if (!empty($row['data']['ftp_status'])) {
+    $row['class'][] = urls_monitor_css_safe('ftp-' . $row['data']['ftp_status']);
+    $row['data']['ftp_status'] = empty($conf['ftp_status'][$row['data']['ftp_status']]) ?
+      $row['data']['ftp_status'] :
+      $conf['ftp_status'][$row['data']['ftp_status']];
+  }
+
+  $type = ($type = urls_monitor_get_property($id, 'type')) ? $type : 'website';
+  $row['class'][] = urls_monitor_css_safe($type);
+
+
+  foreach ($row['data'] as $key => $value) {
+    if (empty($value)) {
+      $row['data'][$key] = URLS_MONITOR_BLANK;
+    }
+  }
+
   $row['class'][] = urls_monitor_css_safe(urls_monitor_alias($row['data']['ip']));
-
-  // Ajax reload
-  $row['data']['check'] = array(
-    'data' => '<a href="#" onclick="return false;" class="ajax-check" rel="' . $row['data']['url'] . '"><img src="/images/reload.gif" alt="ajax-reload-icon" /></a>',
-    'class' => array('ajax'),
-  );
-
-  // Status
-  $row['data']['status'] = empty($conf['status'][$row['data']['status']]) ?
-    $row['data']['status'] :
-    $conf['status'][$row['data']['status']];
-  $row['class'][] = urls_monitor_css_safe(urls_monitor_alias($row['data']['status'], 'status'));
-
+  
+  // Do not set these values for comments
+  if ($type === 'comment') {
+    $row['data']['check'] = URLS_MONITOR_BLANK;
+    $row['class'][] = 'comment';
+  }
+  else {
+    // Ajax reload
+    $row['data']['check'] = array(
+      'data' => '<a href="#" onclick="return false;" class="ajax-check" rel="' . $row['data']['url'] . '"><img src="/images/reload.gif" alt="ajax-reload-icon" /></a>',
+      'class' => array('ajax'),
+    );
+  }
+  
   // Link to website
-  $row['data']['url'] = $id . '<a class="external-link" href="' . $row['data']['url'] . '" onclick="window.open(this.href); return false;"><img src="/images/external.png" /></a>';
+  $row['data']['url'] = $id;
+  if ($type !== 'comment') {
+    $row['data']['url'] .= '<a class="external-link" href="' . $row['data']['url'] . '" onclick="window.open(this.href); return false;"><img src="/images/external.png" /></a>';
+  }
   unset($row['data']['host']);
+
+  if (isset($row['data']['ftp_status']) && !empty($row['data']['ftpu']) && !empty($row['data']['ftpp']) && !empty($row['data']['ftph'])) {
+    $link = 'ftp://' . $row['data']['ftpu'] . ':' . $row['data']['ftpp'] . '@'. $row['data']['ftph'];
+    $row['data']['ftp_status'] .= '<a class="external-link" href="' . $link . '" onclick="window.open(this.href); return false;"><img src="/images/external.png" /></a>';
+  }
 
   // Link to the actual ip if different from alias
   if (($alias = urls_monitor_alias($row['data']['ip'])) && $alias != $row['data']['ip']) {
@@ -526,6 +666,8 @@ function urls_monitor_preprocess_row(&$row) {
   );
   $conf['columns']['check'] = TRUE;
   $row['data'] = array_intersect_key($row['data'], $conf['columns']);
+
+  urls_monitor_theme_alter(__FUNCTION__, $row);
 }
 
 /**
@@ -635,6 +777,7 @@ function urls_monitor_theme_tr($row_data, $alt = 0) {
     $output .= '<td class="' . trim($class) . '">'. $cell['data'] .'</td>'."\n";
   }
   $output .= '</tr>'."\n";
+
   return $output;
 }
 
@@ -655,6 +798,7 @@ function urls_monitor_theme_options($options, $selected = '') {
     $sel = $key == $selected ? ' selected="selected"' : '';
     $output .= '<option value="'. $key .'"'. $sel .'>'. $value .'</option>'."\n";
   }
+
   return $output;
 }
 
@@ -685,6 +829,7 @@ function urls_monitor_theme_select($name, $options, $selected = '', $label = '',
     $output .= '<div class="description">' . $description . '</div>' . "\n";
   }
   $output .= '</div> <!-- /.form-item -->'."\n";
+  
   return $output;
 }
 
@@ -711,36 +856,66 @@ function urls_monitor_page($info) {
   $switch_to = urls_monitor_theme_select('page-menu', $options, $active_page, 'Switch to:');
 
   //@todo remove stylesheets that don't exist to avoid 404s
-  $output = <<<EOD
-<!doctype html>
+  $info['head'] = <<<EOD
+<meta charset="utf-8">
+<title>{$info['title']}</title>
+<meta name="description" content="Results of the domain monitor">
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/themes/{$conf['theme']}/style.css">
+<link rel="stylesheet" href="/{$config}/style.css">
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js" type="text/javascript"></script>
+
+<script type="text/javascript" src="/scripts/canvas.js"></script>
+<script type="text/javascript" src="/scripts/jquery.tablesorter.min.js"></script>
+<script type="text/javascript" src="/scripts/urls_monitor.js"></script>
+<script type="text/javascript">var um_page='{$q}'</script>
+<script>
+  $(document).ready(function(){
+    $("#monitor-results").tablesorter();
+  });
+</script>
+EOD;
+
+  $info['body'] = <<<EOD
+<h1>{$info['title']}</h1>
+<h2>{$info['subtitle']}</h2>
+{$info['body']}
+<div id="page-menu-wrapper">{$switch_to}</div>
+<div id="loading">
+  <div id="loader-image"></div>
+  Checking Now...
+</div> 
+EOD;
+
+
+  urls_monitor_theme_alter(__FUNCTION__, $info);
+
+  $output = "<!doctype html>
 <html>
   <head>
-    <meta charset="utf-8">
-    <title>{$info['title']}</title>
-    <meta name="description" content="Results of the domain monitor">
-    <link rel="stylesheet" href="/style.css">
-    <link rel="stylesheet" href="/config/default/style.css">
-    <link rel="stylesheet" href="/{$config}/style.css">
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js" type="text/javascript"></script>
-    <script type="text/javascript" src="/jquery.tablesorter.min.js"></script>
-    <script type="text/javascript" src="/urls_monitor.js"></script>
-    <script type="text/javascript">var um_page='{$q}'</script>
-    <script>
-      $(document).ready(function(){
-        $("#monitor-results").tablesorter();
-      });
-    </script>
+  {$info['head']}
   </head>
   <body>
-    <h1>{$info['title']}</h1>
-    <h2>{$info['subtitle']}</h2>
-    {$info['body']}
-    <div id="page-menu-wrapper">{$switch_to}</div>
-    <div id="loading">Checking Now...</div>
+  {$info['body']}
   </body>
-</html>
-EOD;
+</html>";
+
   return $output;
+}
+
+/**
+ * Call a theme alter function
+ *
+ * @param  string $hook e.g. 'urls_monitor_preprocess_row'
+ * @param  array &$info This will be passed by recode_file
+ *
+ */
+function urls_monitor_theme_alter($hook, &$info) {
+  global $conf;
+  $function = $conf['theme'] . '_'. $hook .'_alter';
+  if (function_exists($function)) {
+    $function($info);
+  }  
 }
 
 /**
@@ -775,6 +950,61 @@ function urls_monitor_fatal($message) {
   $message = '<div class="message urls_monitor_fatal">' . $message . '</div>';
   print urls_monitor_page(array('body' => $message));
   exit;
+}
+
+/**
+ * Returns the meta data for a domain to mix in to the dynamic data
+ *
+ * @param  string $domain As listed in urls.txt
+ *
+ * @return array         Keys are the column names
+ */
+function urls_monitor_get_meta($domain) {
+  static $meta = array();
+  if (!array_key_exists($domain, $meta)) {
+    $meta[$domain] = array();
+    $path = urls_monitor_get_config('meta.yaml');
+    if (is_readable($path) && is_file($autoload = dirname(__FILE__) . '/vendor/autoload.php')) {
+      require_once $autoload;
+      $yaml = Yaml::parse(file_get_contents($path));
+      foreach ($yaml as $value) {
+        if (strcasecmp($value['url'], $domain) === 0) {
+          ksort($value);
+          $id = urls_monitor_make_id($domain);
+          $meta[$id] = array(
+            'url' => $domain, 
+          ) + $value;
+          break;
+        }
+      }
+    }
+  }
+
+  return $meta[$domain];
+}
+
+/**
+ * Return a property for a given domain
+ *
+ * @param  string $id       The domain id   
+ * @param  string $property Something like 'type', 'find' or 'httpauth';
+ *
+ * @return string|NULL           
+ */
+function urls_monitor_get_property($id, $property) {
+  static $properties = array();
+  if (!array_key_exists($id, $properties)) {
+    $properties[$id] = array();
+    if ($meta = urls_monitor_get_meta($id)) {
+      foreach ($meta as $key => $value) {
+        if (substr($key, 0, 1) === '_') {
+          $properties[$id][substr($key, 1)] = $value;
+        }
+      }
+    }
+  }
+  
+  return array_key_exists($property, $properties[$id]) ? $properties[$id][$property] : NULL;
 }
 
 /** @} */ //end of group urls-monitor
