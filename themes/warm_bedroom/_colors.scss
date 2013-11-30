@@ -1,26 +1,27 @@
-$page: #000;
-$text_on_page: #aaa;
+$page: #827367;
+$text_on_page: #827367;
 
-$primary_color: #99AC3A;
-$text_on_primary: #fff;
+$primary_color: #308576;
+$text_on_primary: #F7E8BA;
 
-$secondary_color: #909099;
-$text_on_secondary: #fff;
+$secondary_color: #827367;
+$text_on_secondary: #000;
 
-$table: #909099;
-$table_odd: #909099;
-$text_on_table: #fff;
+$table: #697B85;
+$table_odd: #fff;
+$text_on_table: #F7E8BA;
 
 body {
   background-color: $page;
   color: $text_on_page; 
 }
 h1, h2, a {
-  color: $primary_color;
+  color: $text_on_primary;
 }
 table {
   background: $table;
   color: $text_on_table;
+  border: 3px solid $primary_color;
 }
 th {
   background-color: $primary_color;
@@ -30,11 +31,12 @@ tr.odd {
   background-color: $table;
 }
 tr:hover {
-  background: $primary_color;
+  background: $secondary_color;
   color: $text_on_primary;
 }
 #loading {
-  background-color: $secondary_color;
+  background-color: $page;
   color: $text_on_secondary;
   border: 10px solid $primary_color;
+  border-radius: 50px;
 }

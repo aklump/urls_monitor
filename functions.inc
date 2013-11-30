@@ -444,6 +444,12 @@ function urls_monitor_check($url, $skip_lookup = FALSE, $use_cache = FALSE) {
     else {
       // we're in, now test the rwx perms
       $result['ftp_status'] = array();
+
+      // First see if we have READ access by trying to list directory
+      if (@ftp_nlist($stream, '.')) {
+        $result['ftp_status'][] = 'r';
+      }
+      
       $now      = urls_monitor_date_now();
 
       // Create a temp file to put
@@ -459,30 +465,19 @@ function urls_monitor_check($url, $skip_lookup = FALSE, $use_cache = FALSE) {
       $filename = pathinfo($send);
       $filename = $filename['basename'];
 
-      $filename = 'test';
-
-      // Create a folder and chdir in
-      if (!@ftp_mkdir($stream, $filename)) {
-        if (@ftp_get($stream, $receive, $filename, FTP_ASCII)) {
-          $result['ftp_status'] = 409;
-        }
-        $result['ftp_status'] = 405;
+      // In the unlikely event that the temp filename exists...
+      if (@ftp_get($stream, $receive, $filename, FTP_ASCII)) {
+        $result['ftp_status'] = array(409);
       }
-      elseif (@ftp_chdir($stream, $filename)) {
-        $result['ftp_status'][] = 'x';
-        if (@ftp_put($stream, $filename, $send, FTP_ASCII)) {
+      else {
+        if (@ftp_mkdir($stream, $filename)) {  
           $result['ftp_status'][] = 'w';
-          if (@ftp_get($stream, $receive, $filename, FTP_ASCII)) {
-            $result['ftp_status'][] = 'r';
-          }
-          @ftp_delete($stream, $filename);
-          @ftp_chdir($stream, '..');
-          @ftp_rmdir($stream, $filename);
+          @ftp_rmdir($stream, "$filename");
         }
-
-        sort($result['ftp_status']);
-        $result['ftp_status'] = implode($result['ftp_status']);
       }
+
+      sort($result['ftp_status']);
+      $result['ftp_status'] = implode($result['ftp_status']);
 
       @ftp_close($stream);
     }
@@ -639,7 +634,7 @@ function urls_monitor_preprocess_row(&$row) {
   }
   unset($row['data']['host']);
 
-  if (isset($row['data']['ftp_status']) && !empty($row['data']['ftpu']) && !empty($row['data']['ftpp']) && !empty($row['data']['ftph'])) {
+  if (isset($row['data']['ftp_status']) && $row['data']['ftp_status'] !== URLS_MONITOR_BLANK && !empty($row['data']['ftpu']) && !empty($row['data']['ftpp']) && !empty($row['data']['ftph'])) {
     $link = 'ftp://' . $row['data']['ftpu'] . ':' . $row['data']['ftpp'] . '@'. $row['data']['ftph'];
     $row['data']['ftp_status'] .= '<a class="external-link" href="' . $link . '" onclick="window.open(this.href); return false;"><img src="/images/external.png" /></a>';
   }

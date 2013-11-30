@@ -83,6 +83,7 @@ The export features are handled by libraries that can be downloaded using compos
 * When building a theme if you append `#demo` to the url, you will be able to theme your ajax loading.  To see what I mean do somethign like this:
 
         http://monitor.local/theme_demo#demo
+* It is probably wise to use `default` as a template.  the `green_black` themes is a little more elaborate with adding extra javascript and overriding images.
 
 
 ##Usage

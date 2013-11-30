@@ -9,15 +9,15 @@
  *
  * @param  array &$info page info
  */
-function green_black_urls_monitor_page_alter(&$info) {
+function warm_bedroom_urls_monitor_page_alter(&$info) {
   $info['head'] .= <<<EOD
-  <script type="text/javascript">
+<script type="text/javascript">
   var cSpeed=7;
-  var cWidth=124;
+  var cWidth=128;
   var cHeight=128;
-  var cTotalFrames=20;
-  var cFrameWidth=124;
-  var cImageSrc='/themes/green_black/images/checking.png';
+  var cTotalFrames=35;
+  var cFrameWidth=128;
+  var cImageSrc='/themes/warm_bedroom/images/checking.png';
   
   var cImageTimeout=false;
   
@@ -49,20 +49,20 @@ function green_black_urls_monitor_page_alter(&$info) {
   
   //The following code starts the animation
   new imageLoader(cImageSrc, 'startAnimation()');
-</script>  
+</script>
 EOD;
 }
 
-function green_black_urls_monitor_preprocess_row_alter(&$row) {
+function warm_bedroom_urls_monitor_preprocess_row_alter(&$row) {
 
   // Replace the row img tags with theme image files...
   foreach (array_keys($row['data']) as $key) {
     if (is_array($row['data'][$key])) {
-      $row['data'][$key]['data'] = str_replace('src="/images/', 'src="/themes/green_black/images/', $row['data'][$key]['data']);
+      $row['data'][$key]['data'] = str_replace('src="/images/', 'src="/themes/warm_bedroom/images/', $row['data'][$key]['data']);
       $row['data'][$key]['data'] = str_replace('/reload.gif', '/reload.png', $row['data'][$key]['data']);
     }
     else {
-      $row['data'][$key] = str_replace('src="/images/', 'src="/themes/green_black/images/', $row['data'][$key]);
+      $row['data'][$key] = str_replace('src="/images/', 'src="/themes/warm_bedroom/images/', $row['data'][$key]);
     }
   }
 }

@@ -10,14 +10,6 @@ $table: #fff;
 $table_odd: #fbfbfb;
 $text_on_table: #000;
 
-$error: #E90A46;
-$text_on_error: #fff;
-$warning: #ff8000;
-$text_on_warning: #fff;
-$checking: #feffae; 
-$text_on_checking: #000;
-
-
 body {
   background-color: $page;
   color: $text_on_page; 
@@ -36,34 +28,6 @@ th {
 tr.odd {
   background-color: $table;
 }
-/*Failed classes, errors*/
-tr.ftp-403,
-tr.ftp-404,
-tr.status-1,
-tr.status-2,
-tr.status-40,
-tr.no-pass,
-tr.no-text,
-tr.error,
-.message.fatal {
-  background-color: $error;
-  color: $text_on_error;
-}
-
-/*Warning class, not total error*/
-tr.ftp-405,
-tr.ftp-409 {
-  background-color: $warning;
-  color: $text_on_warning;  
-}
-
-/*Class to apply while actively ajax checking*/
-tr.checking {
-  background-color: $checking;
-  color: $text_on_checking;
-
-}
-
 #loading {
   background-color: $secondary_color;
   color: $text_on_secondary;

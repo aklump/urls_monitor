@@ -72,3 +72,57 @@ a.external-link {
   margin-left: 20px;
   font-size: 12px;
 }
+/*Failed classes, errors*/
+tr.ftp-403,
+tr.ftp-404,
+tr.status-1,
+tr.status-2,
+tr.status-40,
+tr.no-pass,
+tr.no-text,
+tr.error,
+
+tr.even.ftp-403,
+tr.even.ftp-404,
+tr.even.status-1,
+tr.even.status-2,
+tr.even.status-40,
+tr.even.no-pass,
+tr.even.no-text,
+tr.even.error,
+
+tr.odd.ftp-403,
+tr.odd.ftp-404,
+tr.odd.status-1,
+tr.odd.status-2,
+tr.odd.status-40,
+tr.odd.no-pass,
+tr.odd.no-text,
+tr.odd.error,
+
+.message.fatal {
+  background-color: #E90A46;
+  color: #fff;
+}
+
+/*Warning class, not total error*/
+tr.ftp-r,
+tr.ftp-w,
+tr.ftp-409,
+tr.even.ftp-r,
+tr.even.ftp-w,
+tr.even.ftp-409,  
+tr.odd.ftp-r,
+tr.odd.ftp-w,
+tr.odd.ftp-409 {
+  background-color: #ff8000;
+  color: #fff;  
+}
+
+/*Class to apply while actively ajax checking*/
+tr.checking,
+tr.even.checking,
+tr.odd.checking {
+  background-color: #feffae;
+  color: #000;
+}
