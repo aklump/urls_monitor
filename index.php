@@ -22,7 +22,7 @@ if (!($domains = urls_monitor_urls())) {
 $rows = array();
 foreach ($domains as $domain) {
   $row = array(
-    'data' => urls_monitor_check($domain, TRUE, isset($_GET['export']) && $_GET['export']),
+    'data' => urls_monitor_check($domain, $conf['ajax'], isset($_GET['export']) && $_GET['export']),
   );
   urls_monitor_preprocess_row($row);
 

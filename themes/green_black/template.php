@@ -10,6 +10,7 @@
  * @param  array &$info page info
  */
 function green_black_urls_monitor_page_alter(&$info) {
+  $theme = urls_monitor_make_url(urls_monitor_get_path_to_theme());
   $info['head'] .= <<<EOD
   <script type="text/javascript">
   var cSpeed=7;
@@ -17,13 +18,13 @@ function green_black_urls_monitor_page_alter(&$info) {
   var cHeight=128;
   var cTotalFrames=20;
   var cFrameWidth=124;
-  var cImageSrc='/themes/green_black/images/checking.png';
+  var cImageSrc='{$theme}/images/checking.png';
   
   var cImageTimeout=false;
   
   function startAnimation(){
     
-    document.getElementById('loader-image').innerHTML='<canvas id="canvas" width="'+cWidth+'" height="'+cHeight+'"><p>Your browser does not support the canvas element.</p></canvas>';
+    document.getElementById('loaderImage').innerHTML='<canvas id="canvas" width="'+cWidth+'" height="'+cHeight+'"><p>Your browser does not support the canvas element.</p></canvas>';
     
     //FPS = Math.round(100/(maxSpeed+2-speed));
     FPS = Math.round(100/cSpeed);
@@ -54,15 +55,16 @@ EOD;
 }
 
 function green_black_urls_monitor_preprocess_row_alter(&$row) {
+  $theme = urls_monitor_make_url(urls_monitor_get_path_to_theme());
 
   // Replace the row img tags with theme image files...
   foreach (array_keys($row['data']) as $key) {
     if (is_array($row['data'][$key])) {
-      $row['data'][$key]['data'] = str_replace('src="/images/', 'src="/themes/green_black/images/', $row['data'][$key]['data']);
+      $row['data'][$key]['data'] = str_replace('src="/images/', "src=\"{$theme}/images/", $row['data'][$key]['data']);
       $row['data'][$key]['data'] = str_replace('/reload.gif', '/reload.png', $row['data'][$key]['data']);
     }
     else {
-      $row['data'][$key] = str_replace('src="/images/', 'src="/themes/green_black/images/', $row['data'][$key]);
+      $row['data'][$key] = str_replace('src="/images/', "src=\"{$theme}/images/", $row['data'][$key]);
     }
   }
 }

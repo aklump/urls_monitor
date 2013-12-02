@@ -74,6 +74,17 @@ function urls_monitor_set_persistent($var, $value) {
 }
 
 /**
+ * Delete a persistent variable
+ *
+ * @param  string $var
+ *
+ */
+function urls_monitor_del_persistent($var) {
+  $file = urls_monitor_get_storage_dir() . '/vars/' . md5($var) . '.txt';
+  unlink($file);  
+}
+
+/**
  * Get the current page
  */
 function urls_monitor_get_page() {
@@ -89,8 +100,34 @@ function urls_monitor_get_page() {
   }
 }
 
+function urls_monitor_get_theme() {
+  global $conf;
+  urls_monitor_get_path_to_theme();
+  
+  return $conf['theme'];
+}
+
+
+function urls_monitor_get_path_to_theme() {
+  global $conf;
+  $theme = $conf['theme'];
+
+  // Look for a core theme...
+  if (!file_exists($path = getcwd() . '/themes/' . $theme)
+
+    // Look for a custom theme..,
+    && !file_exists($path = getcwd() . '/config/themes/' . $theme)) {
+
+    // Otherwise set theme to default
+    $conf['theme'] = 'default';
+    return urls_monitor_get_path_to_theme();
+  }
+
+  return $path;
+}
+
 /**
- * Get the path to a config file for the current page
+ * Get the path to a config dir (or file for the current page)
  *
  * If not found, the parent directory will be search recrusively until we're
  * at the top level of the configuration dirs.
@@ -99,11 +136,32 @@ function urls_monitor_get_page() {
  *
  * @return string       The full filepath to the file
  */
-function urls_monitor_get_config($file) {
-  $path = getcwd() . '/config/' . urls_monitor_get_page() . "/$file";
+function urls_monitor_get_config($file = '') {
+  $path = getcwd() . '/config/pages/' . urls_monitor_get_page();
+
+  if (empty($file)) {
+    return $path;
+  }
+  $path .= "/$file";
   $path = _urls_monitor_find_config($file, $path);
 
   return $path;
+}
+
+/**
+ * Turn a path into an url
+ *
+ * @param  string $path 
+ *
+ * @return string       
+ */
+function urls_monitor_make_url($path) {
+  if (strpos($path, getcwd()) === 0) {
+    $path = substr($path, strlen(getcwd()));
+    $path = '/' . trim($path, '/');
+  }
+
+  return $path; 
 }
 
 function _urls_monitor_find_config($file, &$path) {
@@ -128,11 +186,11 @@ function _urls_monitor_find_config($file, &$path) {
  */
 function urls_monitor_get_pages() {
   $pages = array();
-  $directory = 'config';
+  $directory = 'config/pages';
   $recursive = TRUE;
   $files = urls_monitor_list_files($directory, $recursive);
   foreach ($files as $file) {
-    if (preg_match('/^config\/(.+?)\/urls\.txt/', $file, $matches)) {
+    if (preg_match('/^config\/pages\/(.+?)\/urls\.txt/', $file, $matches)) {
       $pages[$matches[1]] = $matches[1];
     }
   }
@@ -187,6 +245,7 @@ function urls_monitor_urls() {
       }
     }
   }
+
   return $domains;
 }
 
@@ -273,7 +332,7 @@ function urls_monitor_check($url, $skip_lookup = FALSE, $use_cache = FALSE) {
     'redirected'    => NULL, 
     'ip'            => NULL, 
     'ttl'           => NULL,
-    'ftp_status'    => NULL,  
+    'ftp_status'    => NULL, 
   );
 
   // Detect spaces which will cause a problem
@@ -425,6 +484,13 @@ function urls_monitor_check($url, $skip_lookup = FALSE, $use_cache = FALSE) {
       $result['ttl'] = $dig['ttl'];
     }
 
+    // Expiration using whois
+    if (($whois = urls_monitor_parse_whois($result['host']))) {
+      foreach ($whois as $key => $value) {
+        $result[$key] = $value;
+      }
+    }
+
     // set status for a missing lock
     if ($result['password'] == 'missing') {
       $result['status'] = 1;
@@ -564,6 +630,48 @@ function urls_monitor_parse_dig($url) {
   return $parsed;
 }
 
+function urls_monitor_parse_whois($url) {
+  $result = urls_monitor_get_persistent("whois_$url");
+  if ($result === NULL) {
+    $result = "Domain not found.";
+    $cmd = shell_exec('which whois');
+    $result = shell_exec(escapeshellcmd($cmd ." ". $url));
+    urls_monitor_set_persistent("whois_$url", $result);
+  }
+
+  $parsed = array();
+
+  // domain dates
+  if (preg_match('/(?:Expiration Date)\:\s*(.*)/i', $result, $matches)) {
+    $parsed['expires'] = strtotime($matches[1]);
+  }
+  if (preg_match('/(?:Updated Date|Last Updated On|Last Updated Date)\:\s*(.*)/i', $result, $matches)) {
+    $parsed['updated'] = strtotime($matches[1]);
+  }
+  if (preg_match('/(?:Creation Date|Created On|Registration Date)\:\s*(.*)/i', $result, $matches)) {
+    $parsed['created'] = strtotime($matches[1]);
+  }
+
+  // nameservers
+  if (preg_match_all('/Name Server:\s*([^\s]+)/i', $result, $matches)) {
+    $parsed['ns'] = array_unique($matches[1]);
+  }
+
+  //registrar
+  if (preg_match('/(?:Registrar|Registrant Organization):\s*(.*)/i', $result, $matches)) {
+    $parsed['registrar'] = $matches[1];
+  }
+  if (preg_match('/Registrar URL:\s*([^\s]+)/i', $result, $matches)) {
+    $parsed['registrar_url'] = $matches[1];
+  }
+
+  if (empty($parsed)) {
+    urls_monitor_del_persistent("whois_$url");
+  }    
+
+  return $parsed;
+}
+
 /**
  * Preprocess the row data
  *
@@ -585,6 +693,24 @@ function urls_monitor_preprocess_row(&$row) {
   global $conf;
 
   $id = urls_monitor_make_id($row['data']['url']);
+
+  // Process dates
+  $date_fields = array('expires', 'updated', 'created');
+  foreach ($date_fields as $field) {
+    if (!empty($row['data'][$field])) {
+      $row['data'][$field] = date($conf['date_format'], $row['data'][$field]);
+    }
+  }
+
+  // Nameservers
+  if (!empty($row['data']['ns'])) {
+    $row['data']['ns'] = implode(', ', $row['data']['ns']);
+  }
+
+  // Registrar
+  if (!empty($row['data']['registrar_url'])) {
+    $row['data']['registrar'] .= ' <a class="external-link" href="' . $row['data']['registrar_url'] . '" onclick="window.open(this.href); return false;"><img src="/images/external.png" /></a>';
+  }  
 
   // Status alias and class
   if (!empty($row['data']['status'])) {
@@ -628,9 +754,11 @@ function urls_monitor_preprocess_row(&$row) {
   }
   
   // Link to website
-  $row['data']['url'] = $id;
   if ($type !== 'comment') {
-    $row['data']['url'] .= '<a class="external-link" href="' . $row['data']['url'] . '" onclick="window.open(this.href); return false;"><img src="/images/external.png" /></a>';
+    $row['data']['url'] = $row['data']['host'] . ' <a class="external-link" href="' . $row['data']['url'] . '" onclick="window.open(this.href); return false;"><img src="/images/external.png" /></a>';
+  }
+  else {
+    $row['data']['url'] = $row['data']['host'];
   }
   unset($row['data']['host']);
 
@@ -844,20 +972,26 @@ function urls_monitor_page($info) {
     'subtitle' => ($count = count(urls_monitor_urls())) == 1 ? '1 Domain' : "$count Domains" . ' Monitored',
   );
   $active_page = urls_monitor_get_page();
-  $config = 'config/' . $active_page;
   $q = urls_monitor_get_page();
 
   $options = urls_monitor_get_pages();
   $switch_to = urls_monitor_theme_select('page-menu', $options, $active_page, 'Switch to:');
 
-  //@todo remove stylesheets that don't exist to avoid 404s
+  $theme_css = '';
+  if (file_exists(($path = urls_monitor_get_path_to_theme() . '/style.css'))) {
+    $theme_css = "\n" . '<link rel="stylesheet" href="' . urls_monitor_make_url($path) . '">';
+  }
+
+  $config_css = '';
+  if (file_exists(($path = urls_monitor_get_config() . '/style.css'))) {
+    $config_css = "\n" . '<link rel="stylesheet" href="' . urls_monitor_make_url($path) . '">';
+  }
+
   $info['head'] = <<<EOD
 <meta charset="utf-8">
 <title>{$info['title']}</title>
 <meta name="description" content="Results of the domain monitor">
-<link rel="stylesheet" href="/style.css">
-<link rel="stylesheet" href="/themes/{$conf['theme']}/style.css">
-<link rel="stylesheet" href="/{$config}/style.css">
+<link rel="stylesheet" href="/style.css">{$theme_css}{$config_css}
 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js" type="text/javascript"></script>
 
 <script type="text/javascript" src="/scripts/canvas.js"></script>
@@ -876,12 +1010,14 @@ EOD;
 <h2>{$info['subtitle']}</h2>
 {$info['body']}
 <div id="page-menu-wrapper">{$switch_to}</div>
+EOD;
+
+  $info['loading'] = <<<EOD
 <div id="loading">
-  <div id="loader-image"></div>
+  <div id="loaderImage"></div>
   Checking Now...
 </div> 
 EOD;
-
 
   urls_monitor_theme_alter(__FUNCTION__, $info);
 
@@ -892,6 +1028,7 @@ EOD;
   </head>
   <body>
   {$info['body']}
+  {$info['loading']}
   </body>
 </html>";
 
@@ -906,8 +1043,7 @@ EOD;
  *
  */
 function urls_monitor_theme_alter($hook, &$info) {
-  global $conf;
-  $function = $conf['theme'] . '_'. $hook .'_alter';
+  $function = urls_monitor_get_theme() . '_'. $hook .'_alter';
   if (function_exists($function)) {
     $function($info);
   }  

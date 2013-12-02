@@ -1,8 +1,11 @@
 @import '_colors.scss';
 #loading {
-  margin-top: -100px;
+  border-radius: 180px;
+  height: 180px;
+  width: 180px;
+  margin-top: -90px;
 }
-#loader-image {
+#loaderImage {
   display: block;
   margin: 0 auto 10px;
   background: none;

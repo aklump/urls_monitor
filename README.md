@@ -69,17 +69,22 @@ To allow tablesorting you need to download tablesorter
 * <http://tablesorter.com/docs/#Download>
 * Move `jquery.tablesorter.min.js` project's root folder
 
+## Updates
+On occassion you may need to run an update script to reorganize your config files.  They are located in `/updates`.  The updates are listed by version number.  Here's what you'd do when your codebase changes to version 0.7.
+
+    ./updates/0.7.sh
 
 ##Export
 The export features are handled by libraries that can be downloaded using composer, if composer is installed on your system.  The install script will attempt to run `composer install`.
 
 ##Theming
 * Look for themes in `/themes`
-* To select the theme you need to add something like this to `config.ini`
+* To select the theme you need to add something like this to `config.ini`; you only need the theme name, not the path to the theme.
         
         theme = 'another_theme';
 
 * You may also simply override a theme's css by adding `style.css` to your config directory.
+* Place custom themes in `/config/themes`; no two themes should have the same name.
 * When building a theme if you append `#demo` to the url, you will be able to theme your ajax loading.  To see what I mean do somethign like this:
 
         http://monitor.local/theme_demo#demo
