@@ -65,25 +65,35 @@ fi
 # Gleen the page name
 if [ $# -ne 1 ]
 then
-  page='default'
+  echo "`tput setaf 1`Please provide a project name as the argument.`tput op`"
+  exit
 else
   page=$1
 fi
 
+if [[ -d "config/pages/$page" ]]; then
+  echo "`tput setaf 1`The project '$page' already exists.`tput op`"
+  exit
+fi
+
 # Make sure the directory exists
-mkdir -p "config/$page"
+mkdir -p "config/pages/$page"
 
 # Descend into page directory
-cd "config/$page"
+cd "config/pages/$page"
 
 # Configuration files
 if [ ! -f config.ini ]
 then
-  cp "$start_dir/config/default/config.default.ini" config.ini
+  cp "$start_dir/install/config.default.ini" config.ini
 fi
 if [ ! -f urls.txt ]
 then
-  cp "$start_dir/config/default/urls.default.txt" urls.txt
+  cp "$start_dir/install/urls.default.txt" urls.txt
+fi
+if [ ! -f meta.yaml ]
+then
+  cp "$start_dir/install/meta.default.yaml" meta.yaml
 fi
 
 cd $start_dir
@@ -101,10 +111,10 @@ then
 fi
 
 # Check for success
-if [ -f jquery.tablesorter.min.js ] && [ -f config/$page/config.ini ] && [ -f config/$page/urls.txt ]
+if [ -f jquery.tablesorter.min.js ] && [ -f config/pages/$page/config.ini ] && [ -f config/pages/$page/urls.txt ]
 then
-  echo 'Installation complete.'
-  echo "Please edit config/$page/urls.txt and config/$page/config.ini now.";
+  echo "`tput setaf 2`Installation complete.`tput op`"
+  echo "`tput setaf 2`Please edit config/pages/$page/urls.txt now.`tput op`"
 else
-  echo 'Installation failed.'
+  echo "`tput setaf 1`Installation failed.`tput op`"
 fi

@@ -1,0 +1,34 @@
+$page: #eee;
+$text_on_page: #aaa;
+
+$primary_color: #64A3EC;
+$text_on_primary: #fff;
+$secondary_color: #fd6dbf;
+$text_on_secondary: #fff;
+
+$table: #fff;
+$table_odd: #fbfbfb;
+$text_on_table: #000;
+
+body {
+  background-color: $page;
+  color: $text_on_page; 
+}
+h1, h2, a {
+  color: $primary_color;
+}
+table {
+  background: $table;
+  color: $text_on_table;
+}
+th {
+  background-color: $primary_color;
+  color: $text_on_primary;
+}
+tr.odd {
+  background-color: $table;
+}
+#loading {
+  background-color: $secondary_color;
+  color: $text_on_secondary;
+}

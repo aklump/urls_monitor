@@ -1,0 +1,40 @@
+$page: #000;
+$text_on_page: #aaa;
+
+$primary_color: #99AC3A;
+$text_on_primary: #fff;
+
+$secondary_color: #909099;
+$text_on_secondary: #fff;
+
+$table: #909099;
+$table_odd: #909099;
+$text_on_table: #fff;
+
+body {
+  background-color: $page;
+  color: $text_on_page; 
+}
+h1, h2, a {
+  color: $primary_color;
+}
+table {
+  background: $table;
+  color: $text_on_table;
+}
+th {
+  background-color: $primary_color;
+  color: $text_on_primary;
+}
+tr.odd {
+  background-color: $table;
+}
+tr:hover {
+  background: $primary_color;
+  color: $text_on_primary;
+}
+#loading {
+  background-color: $secondary_color;
+  color: $text_on_secondary;
+  border: 10px solid $primary_color;
+}

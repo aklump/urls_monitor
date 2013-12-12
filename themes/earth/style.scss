@@ -1,0 +1,16 @@
+@import '_colors.scss';
+body {
+  font-family: 'Eagle Lake', cursive;
+  font-size: 14px;
+}
+#loading {
+  margin-top: -128px;
+  background-color: transparent
+}
+#loaderImage {
+  display: block;
+  margin: 0 auto 10px;
+  background: url('/themes/earth/images/checking.png');
+  height: 256px;
+  width: 256px;
+}

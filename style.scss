@@ -1,0 +1,128 @@
+body {
+  font-family: Arial, sans-serif;
+  padding-bottom: 20px;
+}
+h1,
+h2 {
+  margin: 10px 0;
+  text-align: center;
+}
+h2 {
+  margin: 5px 0;
+}
+.links,
+table {
+  width: 80%;
+  margin: 10px auto;
+}
+th {
+  text-align: left;
+  color: #fff;
+}
+td, th {
+  padding: 5px;
+}
+table.tablesorter thead tr .header {
+  background-image: url(/images/bg.gif);
+  background-repeat: no-repeat;
+  background-position: center right;
+  cursor: pointer;
+}
+table.tablesorter thead tr .headerSortUp {
+  background-image: url(/images/asc.gif);
+}
+table.tablesorter thead tr .headerSortDown {
+  background-image: url(/images/desc.gif);
+}
+a.external-link {
+  margin-left: 2px;
+}
+.message {
+  text-align: center;
+  padding: 20px;
+  margin: 20px 0;
+}
+#loading {
+  display: none;
+  text-align: center;
+  padding: 20px;
+  margin-top: -71px;
+  width: 200px;
+  left: 50%;
+  margin-left: -100px;
+  position: fixed;
+  top: 50%;
+}
+#loaderImage {
+  display: block;
+  margin: 0 auto 10px;
+  background: url('/images/checking.gif');
+  height: 72px;
+  width: 72px;
+}
+#page-menu-wrapper {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 3px;
+  font-size: 11px;
+}
+.export-links a {
+  float: right;
+  margin-left: 20px;
+  font-size: 12px;
+}
+/*Failed classes, errors*/
+tr.ftp-403,
+tr.ftp-404,
+tr.status-1,
+tr.status-2,
+tr.status-40,
+tr.no-pass,
+tr.no-text,
+tr.error,
+
+tr.even.ftp-403,
+tr.even.ftp-404,
+tr.even.status-1,
+tr.even.status-2,
+tr.even.status-40,
+tr.even.no-pass,
+tr.even.no-text,
+tr.even.error,
+
+tr.odd.ftp-403,
+tr.odd.ftp-404,
+tr.odd.status-1,
+tr.odd.status-2,
+tr.odd.status-40,
+tr.odd.no-pass,
+tr.odd.no-text,
+tr.odd.error,
+
+.message.fatal {
+  background-color: #E90A46;
+  color: #fff;
+}
+
+/*Warning class, not total error*/
+tr.ftp-r,
+tr.ftp-w,
+tr.ftp-409,
+tr.even.ftp-r,
+tr.even.ftp-w,
+tr.even.ftp-409,  
+tr.odd.ftp-r,
+tr.odd.ftp-w,
+tr.odd.ftp-409 {
+  background-color: #ff8000;
+  color: #fff;  
+}
+
+/*Class to apply while actively ajax checking*/
+tr.checking,
+tr.even.checking,
+tr.odd.checking {
+  background-color: #feffae;
+  color: #000;
+}

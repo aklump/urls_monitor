@@ -1,0 +1,11 @@
+@import '_colors.scss';
+#loading {
+  margin-top: -100px;
+}
+#loaderImage {
+  display: block;
+  margin: 0 auto 10px;
+  background: none;
+  height: auto;
+  width: auto;
+}
