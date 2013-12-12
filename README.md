@@ -28,14 +28,31 @@ Allows you to view the connectivity results of multiple domains from a single we
 
 ## Adding Meta Data
 * You may provide additional arbitrary (meta) data for each url, such as an extra column for the codebase of the website.
-* You do this with a file called `meta.yaml`, which is in yaml format.
-* Column names <strong>must not contain spaces</strong>; however, you may use an alias with a space, if you'd like.
+* You do this in `config.ini` and/or with a file called `meta.yaml`, which is in yaml format.
+* When keys conflict the most specific will be used--where the value of the key in `meta.yaml` is most specific and the value in `config.ini` of `meta[key]` is least.
+* Column (key) names <strong>must not contain spaces</strong>; however, you may use an alias with a space, if you'd like.
+
+### Using `config.ini`
+* Add a line like the following to have a meta key/value added to every type.  This has the effect of adding a column `key` with the value `value` to every line.  The column will only display, however if you include the second line below as well:
+  
+        meta[key] = "value"
+        columns[key] = 1
+
+* Add a line like this to only add to `mailbox` types, again be sure to add `columns[key] = 1`
+
+        meta_mailbox[key] = "value"
+
+### Using `meta.yaml`
+
 * To generate the template file use `meta.sh`; you may also call this after adding new urls so they populate in your template.  The following will generate or update (sort alphabetically) `config/demo/meta.yaml` using `urls.txt`.  **Note that any data already in `meta.yaml` is preserved during this step**, only new urls are added, if any.
       
         ./meta.sh demo
 
 * Now edit `meta.yaml` and add other data as desired.  Note a conflict by key will result in the dynamic value replacing what is hardcoded in `meta.yaml`.  Be sure to wrap string values in quotes to avoid parse errors.
 * The keys you provide in the yaml file will become the column keys so make sure they appear just like other columns in `config.ini`, for both visibility and ordering.
+
+## Line Types
+* Take a look at `functions.php:urls_monitor_get_types()` to see the various types available.  This is a developing topic...
 
 ## Comment Entries
 You may create an "url" which is not an url at all but a row serving as a comment.  The dynamic fields are disabled on comment rows.  Here's what to do:

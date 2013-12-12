@@ -60,7 +60,7 @@ function happiness_urls_monitor_preprocess_row_alter(&$row) {
 
   // Replace the row img tags with theme image files...
   foreach (array_keys($row['data']) as $key) {
-    if (is_array($row['data'][$key])) {
+    if (is_array($row['data'][$key]) && isset($row['data'][$key])) {
       $row['data'][$key]['data'] = str_replace('src="/images/', "src=\"{$theme}/images/", $row['data'][$key]['data']);
       $row['data'][$key]['data'] = str_replace('/reload.gif', '/reload.png', $row['data'][$key]['data']);
     }

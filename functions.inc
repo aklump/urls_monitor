@@ -15,7 +15,8 @@ use Symfony\Component\Yaml\Yaml;
  * String value to use on NULL or unknown cell values
  */
 define('URLS_MONITOR_BLANK', '-');
-
+define('URLS_MONITOR_DEFAULT_TYPE', 'website');
+define('URLS_MONITOR_REGEX_MAILBOX', '/(\S+)@(\S+)/');
 /**
  * Return current time as date object
  *
@@ -107,6 +108,19 @@ function urls_monitor_get_theme() {
   return $conf['theme'];
 }
 
+/**
+ * Return the path to the current page directory.
+ *
+ * @return string
+ */
+function urls_monitor_get_path_to_page($file = '') {
+  $path = getcwd() . '/config/pages/' . urls_monitor_get_page();
+  if ($file) {
+    $path .= "/$file";
+  } 
+
+  return $path;
+}
 
 function urls_monitor_get_path_to_theme() {
   global $conf;
@@ -137,7 +151,7 @@ function urls_monitor_get_path_to_theme() {
  * @return string       The full filepath to the file
  */
 function urls_monitor_get_config($file = '') {
-  $path = getcwd() . '/config/pages/' . urls_monitor_get_page();
+  $path = urls_monitor_get_path_to_page();
 
   if (empty($file)) {
     return $path;
@@ -167,7 +181,9 @@ function urls_monitor_make_url($path) {
 function _urls_monitor_find_config($file, &$path) {
   $info = pathinfo($path);
   $basename = $info['basename'];
-  if ($info['basename'] === 'config') {
+
+  // When we get to the top level we go with what we have
+  if (preg_match('/config\/pages$/', dirname($path))) {
     return $path;
   }
   elseif ($info['basename'] === $file && is_file($path)) {
@@ -290,6 +306,43 @@ function urls_monitor_make_id($url) {
 }
 
 /**
+ * Return the explicit or implicit type of an url/id
+ *
+ * @param  string $id
+ *
+ * @return string
+ *   The type of the url
+ *
+ * @see urls_monitor_get_types().
+ */
+function urls_monitor_get_type($id) {
+  if (!($type = urls_monitor_get_property($id, 'type'))) {
+    if (preg_match(URLS_MONITOR_REGEX_MAILBOX, $id)) {
+      $type = 'mailbox';
+    }
+  }
+
+  return !$type ? URLS_MONITOR_DEFAULT_TYPE : $type;
+}
+
+/**
+ * Return an array of _type values.
+ *
+ * @return array
+ *   - Keys are type codes
+ *   - Values are arrays
+ *     - description: string
+ */
+function urls_monitor_get_types() {
+  return array(
+    'website'   => array('description' => 'all possible dynamic fields'),
+    'ftp'       => array('description' => 'ftp connection only'),
+    'comment'   => array('description' => 'no dynamic fields'),
+    'mailbox'   => array('description' => 'an email address to an inbox'),
+  );
+}
+
+/**
  * Return an status array for a domain
  *
  * @param string $id
@@ -309,14 +362,10 @@ function urls_monitor_make_id($url) {
 function urls_monitor_check($url, $skip_lookup = FALSE, $use_cache = FALSE) {
   global $conf;
 
-  if (!($parsed = urls_monitor_parse_url($url))) {
-    return;
-  }
-
-  // This is the url minus the protocol
-  $id = urls_monitor_make_id($url);
-
-  $parsed += urls_monitor_get_meta($id);
+  $id     = urls_monitor_make_id($url);
+  $meta   = urls_monitor_get_meta($id);
+  $type   = urls_monitor_get_type($id);
+  $parsed = $meta + urls_monitor_parse_url($url, $type);  
 
   // juggle this around so the column order is based on config.ini
   $result = array_fill_keys(array_keys($conf['columns']), NULL);
@@ -349,18 +398,21 @@ function urls_monitor_check($url, $skip_lookup = FALSE, $use_cache = FALSE) {
     $result = (array) $cached + $result;
   }
 
-  // Valid types are:
-  // - website: all possible dynamic fields
-  // - ftp; ftp connection only
-  // - comment: no dynamic fields
   $skip_website = FALSE;
-  switch (urls_monitor_get_property($id, 'type')) {
+  
+  switch ($type) {
     case 'comment':
       $result['status'] = NULL;
       $skip_lookup = TRUE;
       break;
 
     case 'ftp':
+      $skip_website = TRUE;
+      break;
+
+    case 'mailbox':
+      $result['status'] = NULL;
+      $skip_lookup = TRUE;
       $skip_website = TRUE;
       break;
   }
@@ -562,17 +614,29 @@ function urls_monitor_check($url, $skip_lookup = FALSE, $use_cache = FALSE) {
  *   - host
  *   - url
  */
-function urls_monitor_parse_url($url) {
-  $url = strtolower(trim($url, '/'));
-  if (!strstr($url, ':/')) {
-    $url = 'http://' . $url;
+function urls_monitor_parse_url($url, $type = URLS_MONITOR_DEFAULT_TYPE) {
+  switch ($type) {
+    case 'mailbox':
+      $parsed = array(
+        'url' => $url,
+        'host' => $url,
+      );
+      break;
+    
+    default:
+      $url = strtolower(trim($url, '/'));
+      if (!strstr($url, ':/')) {
+        $url = 'http://' . $url;
+      }
+      if ($parsed = parse_url($url)) {
+        $parsed += array(
+          'url' => $url,
+        );
+        unset($parsed['scheme']);
+      }
+      break;
   }
-  if (($parsed = parse_url($url))) {
-    $parsed += array(
-      'url' => $url,
-    );
-    unset($parsed['scheme']);
-  }
+
   return $parsed;
 }
 
@@ -703,8 +767,8 @@ function urls_monitor_preprocess_row(&$row) {
   }
 
   // Nameservers
-  if (!empty($row['data']['ns'])) {
-    $row['data']['ns'] = implode(', ', $row['data']['ns']);
+  if (!empty($row['data']['ns']) && !is_string($row['data']['ns'])) {
+    $row['data']['ns'] = implode(', ', (array) $row['data']['ns']);
   }
 
   // Registrar
@@ -728,7 +792,7 @@ function urls_monitor_preprocess_row(&$row) {
       $conf['ftp_status'][$row['data']['ftp_status']];
   }
 
-  $type = ($type = urls_monitor_get_property($id, 'type')) ? $type : 'website';
+  $type = urls_monitor_get_type($id);
   $row['class'][] = urls_monitor_css_safe($type);
 
 
@@ -741,7 +805,7 @@ function urls_monitor_preprocess_row(&$row) {
   $row['class'][] = urls_monitor_css_safe(urls_monitor_alias($row['data']['ip']));
   
   // Do not set these values for comments
-  if ($type === 'comment') {
+  if (in_array($type, array('mailbox', 'comment'))) {
     $row['data']['check'] = URLS_MONITOR_BLANK;
     $row['class'][] = 'comment';
   }
@@ -760,7 +824,6 @@ function urls_monitor_preprocess_row(&$row) {
   else {
     $row['data']['url'] = $row['data']['host'];
   }
-  unset($row['data']['host']);
 
   if (isset($row['data']['ftp_status']) && $row['data']['ftp_status'] !== URLS_MONITOR_BLANK && !empty($row['data']['ftpu']) && !empty($row['data']['ftpp']) && !empty($row['data']['ftph'])) {
     $link = 'ftp://' . $row['data']['ftpu'] . ':' . $row['data']['ftpp'] . '@'. $row['data']['ftph'];
@@ -1091,24 +1154,59 @@ function urls_monitor_fatal($message) {
  * @return array         Keys are the column names
  */
 function urls_monitor_get_meta($domain) {
+  global $conf;
   static $meta = array();
   if (!array_key_exists($domain, $meta)) {
-    $meta[$domain] = array();
-    $path = urls_monitor_get_config('meta.yaml');
+    $id = urls_monitor_make_id($domain);
+    $type = urls_monitor_get_type($id);
+    $base = array(
+      'url' => $domain,
+      '_type' => NULL,  
+    );
+    $meta[$id] = array();
+    $path = urls_monitor_get_path_to_page('meta.yaml');
     if (is_readable($path) && is_file($autoload = dirname(__FILE__) . '/vendor/autoload.php')) {
       require_once $autoload;
       $yaml = Yaml::parse(file_get_contents($path));
-      foreach ($yaml as $value) {
+      foreach ((array) $yaml as $value) {
         if (strcasecmp($value['url'], $domain) === 0) {
-          ksort($value);
-          $id = urls_monitor_make_id($domain);
-          $meta[$id] = array(
-            'url' => $domain, 
-          ) + $value;
+          $meta[$id] += $value;
           break;
         }
-      }
+      }      
     }
+
+    // Defaults by _type
+    switch ($type) {
+      case 'mailbox':
+        preg_match(URLS_MONITOR_REGEX_MAILBOX, $domain, $matches);
+        $meta[$domain] += array(
+          'mail_in_s'       => isset($matches[2]) ? 'mail.' . $matches[2] : NULL,
+          'mail_in_u'       => $domain,
+          'mail_in_p'       => isset($meta[$domain]['mailp']) ? $meta[$domain]['mailp'] : '?',
+        );
+        $meta[$domain] += array(
+          'mail_out_s'      => $meta[$domain]['mail_in_s'],
+          'mail_out_u'      => $meta[$domain]['mail_in_u'],
+          'mail_out_p'      => $meta[$domain]['mail_in_p'],
+        );
+        break;
+    }
+
+    // Defaults from $conf['meta_'. $type]
+    if (isset($conf['meta_'. $type])) {
+      $meta[$domain] += $conf['meta_'. $type];
+    }
+
+    // Defaults from $conf['meta']
+    if (isset($conf['meta'])) {
+      $meta[$domain] += $conf['meta'];
+    }
+
+    // Sort by key
+    ksort($meta[$domain]);
+    $base['_type'] = $type;
+    $meta[$domain] = $base + $meta[$domain];
   }
 
   return $meta[$domain];
