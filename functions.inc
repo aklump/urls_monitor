@@ -17,6 +17,7 @@ use Symfony\Component\Yaml\Yaml;
 define('URLS_MONITOR_BLANK', '-');
 define('URLS_MONITOR_DEFAULT_TYPE', 'website');
 define('URLS_MONITOR_REGEX_MAILBOX', '/(\S+)@(\S+)/');
+define('URLS_MONITOR_REGEX_MAIL_FORWARD', '/^\*@(\S+)/');
 /**
  * Return current time as date object
  *
@@ -245,7 +246,7 @@ function urls_monitor_list_files($directory, $recursive) {
 function urls_monitor_urls() {
   static $domains = array();
   if (empty($domains)) {
-    $filename = urls_monitor_get_config('urls.txt');
+    $filename = urls_monitor_get_path_to_page('urls.txt');
     $domains = array();
     if (is_readable($filename) &&
         ($domains = file($filename))) {
@@ -316,11 +317,37 @@ function urls_monitor_make_id($url) {
  * @see urls_monitor_get_types().
  */
 function urls_monitor_get_type($id) {
-  if (!($type = urls_monitor_get_property($id, 'type'))) {
-    if (preg_match(URLS_MONITOR_REGEX_MAILBOX, $id)) {
-      $type = 'mailbox';
+  static $types = array();
+  
+  if (!array_key_exists($id, $types)) {
+    $meta = urls_monitor_get_meta($id);
+    if (!($type = urls_monitor_get_property($id, 'type', $meta))) {
+      $type = _urls_monitor_get_implied_type($id);
     }
+    $types[$id] = $type;
   }
+
+  return $types[$id];
+}
+
+/**
+ * Helper function; use urls_monitor_get_type() instead.
+ *
+ * @param  string $id
+ *
+ * @return string
+ *
+ * @see  urls_monitor_get_type()
+ */
+function _urls_monitor_get_implied_type($id) {
+  $type = NULL;
+  if (preg_match(URLS_MONITOR_REGEX_MAIL_FORWARD, $id)) {
+    $type = 'mail_forward';
+  }
+  elseif (preg_match(URLS_MONITOR_REGEX_MAILBOX, $id)) {
+    $type = 'mailbox';
+  }
+  
 
   return !$type ? URLS_MONITOR_DEFAULT_TYPE : $type;
 }
@@ -335,10 +362,11 @@ function urls_monitor_get_type($id) {
  */
 function urls_monitor_get_types() {
   return array(
-    'website'   => array('description' => 'all possible dynamic fields'),
-    'ftp'       => array('description' => 'ftp connection only'),
-    'comment'   => array('description' => 'no dynamic fields'),
-    'mailbox'   => array('description' => 'an email address to an inbox'),
+    'website'         => array('description' => 'all possible dynamic fields'),
+    'ftp'             => array('description' => 'ftp connection only'),
+    'comment'         => array('description' => 'no dynamic fields'),
+    'mailbox'         => array('description' => 'an email address to an inbox'),
+    'mail_forward'    => array('description' => 'an email address which forwards'),
   );
 }
 
@@ -410,6 +438,7 @@ function urls_monitor_check($url, $skip_lookup = FALSE, $use_cache = FALSE) {
       $skip_website = TRUE;
       break;
 
+    case 'mail_forward':
     case 'mailbox':
       $result['status'] = NULL;
       $skip_lookup = TRUE;
@@ -478,7 +507,7 @@ function urls_monitor_check($url, $skip_lookup = FALSE, $use_cache = FALSE) {
     curl_close($curl);
 
     // Determine if this redirects
-    if ($conf['redirect_count']) {
+    if (isset($conf['redirect_count'])) {
       $result['redirects'] = $info['redirect_count'];
     }
 
@@ -616,6 +645,7 @@ function urls_monitor_check($url, $skip_lookup = FALSE, $use_cache = FALSE) {
  */
 function urls_monitor_parse_url($url, $type = URLS_MONITOR_DEFAULT_TYPE) {
   switch ($type) {
+    case 'mail_forward':
     case 'mailbox':
       $parsed = array(
         'url' => $url,
@@ -805,7 +835,7 @@ function urls_monitor_preprocess_row(&$row) {
   $row['class'][] = urls_monitor_css_safe(urls_monitor_alias($row['data']['ip']));
   
   // Do not set these values for comments
-  if (in_array($type, array('mailbox', 'comment'))) {
+  if (in_array($type, array('mailbox', 'mail_forward', 'comment'))) {
     $row['data']['check'] = URLS_MONITOR_BLANK;
     $row['class'][] = 'comment';
   }
@@ -1149,67 +1179,76 @@ function urls_monitor_fatal($message) {
 /**
  * Returns the meta data for a domain to mix in to the dynamic data
  *
- * @param  string $domain As listed in urls.txt
+ * @param  string $id As listed in urls.txt
  *
  * @return array         Keys are the column names
  */
-function urls_monitor_get_meta($domain) {
+function urls_monitor_get_meta($id) {
   global $conf;
   static $meta = array();
-  if (!array_key_exists($domain, $meta)) {
-    $id = urls_monitor_make_id($domain);
-    $type = urls_monitor_get_type($id);
+  if (!array_key_exists($id, $meta)) {
+    $id = urls_monitor_make_id($id);
     $base = array(
-      'url' => $domain,
+      'url' => $id,
       '_type' => NULL,  
     );
     $meta[$id] = array();
-    $path = urls_monitor_get_path_to_page('meta.yaml');
+    $path = urls_monitor_get_config('meta.yaml');
     if (is_readable($path) && is_file($autoload = dirname(__FILE__) . '/vendor/autoload.php')) {
       require_once $autoload;
       $yaml = Yaml::parse(file_get_contents($path));
       foreach ((array) $yaml as $value) {
-        if (strcasecmp($value['url'], $domain) === 0) {
+        if (strcasecmp($value['url'], $id) === 0) {
           $meta[$id] += $value;
           break;
         }
       }      
     }
 
-    // Defaults by _type
-    switch ($type) {
-      case 'mailbox':
-        preg_match(URLS_MONITOR_REGEX_MAILBOX, $domain, $matches);
-        $meta[$domain] += array(
-          'mail_in_s'       => isset($matches[2]) ? 'mail.' . $matches[2] : NULL,
-          'mail_in_u'       => $domain,
-          'mail_in_p'       => isset($meta[$domain]['mailp']) ? $meta[$domain]['mailp'] : '?',
-        );
-        $meta[$domain] += array(
-          'mail_out_s'      => $meta[$domain]['mail_in_s'],
-          'mail_out_u'      => $meta[$domain]['mail_in_u'],
-          'mail_out_p'      => $meta[$domain]['mail_in_p'],
-        );
-        break;
-    }
-
-    // Defaults from $conf['meta_'. $type]
-    if (isset($conf['meta_'. $type])) {
-      $meta[$domain] += $conf['meta_'. $type];
+    // Do we have a hard-coded type?
+    if (!($type = urls_monitor_get_property($id, 'type', $meta[$id]))) {
+      $type = _urls_monitor_get_implied_type($id);
     }
 
     // Defaults from $conf['meta']
     if (isset($conf['meta'])) {
-      $meta[$domain] += $conf['meta'];
+      $meta[$id] += $conf['meta'];
+    }
+
+    // Defaults from $conf['meta_'. $type]
+    if (isset($conf['meta_'. $type])) {
+      $meta[$id] += $conf['meta_'. $type];
+    }
+
+    // Finally add any keys that need to be in meta always
+    switch ($type) {
+      case 'mailbox':
+        preg_match(URLS_MONITOR_REGEX_MAILBOX, $id, $matches);
+        $meta[$id] += array(
+          'mail_in_s'       => isset($matches[2]) ? 'mail.' . $matches[2] : NULL,
+          'mail_in_u'       => $id,
+          'mail_in_p'       => '?', 
+        );
+        $meta[$id] += array(
+          'mail_out_s'      => $meta[$id]['mail_in_s'],
+          'mail_out_u'      => $meta[$id]['mail_in_u'],
+          'mail_out_p'      => $meta[$id]['mail_in_p'],
+        );        
+        break;
+      case 'mail_foward':
+        $meta[$id] += array(
+          'mail_forward' => '?', 
+        );
+        break;
     }
 
     // Sort by key
-    ksort($meta[$domain]);
+    ksort($meta[$id]);
     $base['_type'] = $type;
-    $meta[$domain] = $base + $meta[$domain];
+    $meta[$id] = $base + $meta[$id];
   }
 
-  return $meta[$domain];
+  return $meta[$id];
 }
 
 /**
@@ -1217,18 +1256,17 @@ function urls_monitor_get_meta($domain) {
  *
  * @param  string $id       The domain id   
  * @param  string $property Something like 'type', 'find' or 'httpauth';
+ * @param  array $meta The meta array to search for a property
  *
  * @return string|NULL           
  */
-function urls_monitor_get_property($id, $property) {
+function urls_monitor_get_property($id, $property, $meta) {
   static $properties = array();
   if (!array_key_exists($id, $properties)) {
     $properties[$id] = array();
-    if ($meta = urls_monitor_get_meta($id)) {
-      foreach ($meta as $key => $value) {
-        if (substr($key, 0, 1) === '_') {
-          $properties[$id][substr($key, 1)] = $value;
-        }
+    foreach ($meta as $key => $value) {
+      if (substr($key, 0, 1) === '_') {
+        $properties[$id][substr($key, 1)] = $value;
       }
     }
   }
